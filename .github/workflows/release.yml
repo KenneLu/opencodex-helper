@@ -57,7 +57,7 @@ jobs:
             --workpath build\work `
             --specpath build `
             main.py `
-            --add-data "bin;bin" `
+            --add-data "$pwd\bin;bin" `
             --collect-all psutil `
             --collect-all tkinter `
             --hidden-import pystray `
