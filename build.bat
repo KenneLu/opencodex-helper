@@ -5,18 +5,21 @@ cd /d "%~dp0"
 rem ---------------------------------------------------------------------------
 rem opencodex-helper build: gates -> PyInstaller -> release\<name>-<ver>\ -> frozen smoke
 rem ASCII-only: cmd.exe parses .bat with the machine ANSI code page.
-rem Usage: build.bat [norun] [nopause]
+rem Usage: build.bat [norun] [nopause] [nosmoke]
 rem   norun    do not start the built exe (starting it is the default)
 rem   nopause  unattended (no "press any key") - used by CI
+rem   nosmoke  skip the frozen smoke (CI: no local opencodex service env; G3)
 rem ---------------------------------------------------------------------------
 
 set RUN_AFTER=1
 set NOPAUSE=
+set NOSMOKE=
 set BUILD_ARGS=%*
 if not defined BUILD_ARGS goto :args_done
 for %%a in (%BUILD_ARGS%) do (
   if /i "%%a"=="norun" set RUN_AFTER=
   if /i "%%a"=="nopause" set NOPAUSE=1
+  if /i "%%a"=="nosmoke" set NOSMOKE=1
 )
 :args_done
 
@@ -146,23 +149,29 @@ if not exist "%RELEASE_DIR%\_internal\%APPNAME%-taskbar.ico" (
 )
 
 set "PYTHONUTF8=1"
+if defined NOSMOKE goto :smoke_skip
 rem Instance isolation (F11/D2): the smoke run must not read or rewrite the
 rem developer's live AppData config/log - pin the data root to a throwaway
 rem dir inside the release folder, removed right after the smoke.
 set "OPENCODEX_HELPER_DATA_DIR=%RELEASE_DIR%\smoke-data"
 echo [TEST] frozen smoke ...
 "%FROZEN_EXE%" --smoke
-if errorlevel 1 (
-  echo [ERROR] smoke test failed. See %RELEASE_DIR%\smoke-data
-  set "OPENCODEX_HELPER_DATA_DIR="
-  if not defined NOPAUSE pause
-  exit /b 1
-)
+if errorlevel 1 goto :smoke_fail
 set "OPENCODEX_HELPER_DATA_DIR="
 type "%RELEASE_DIR%\smoke.log" 2>nul
 if exist "%RELEASE_DIR%\smoke.log" del /q "%RELEASE_DIR%\smoke.log"
 if exist "%RELEASE_DIR%\log" rmdir /s /q "%RELEASE_DIR%\log"
 if exist "%RELEASE_DIR%\smoke-data" rmdir /s /q "%RELEASE_DIR%\smoke-data"
+goto :smoke_done
+:smoke_skip
+echo [SKIP] frozen smoke: nosmoke set - CI has no local opencodex service env
+goto :smoke_done
+:smoke_fail
+echo [ERROR] smoke test failed. See %RELEASE_DIR%\smoke-data
+set "OPENCODEX_HELPER_DATA_DIR="
+if not defined NOPAUSE pause
+exit /b 1
+:smoke_done
 
 echo.
 echo [DONE] release: %FROZEN_EXE%
