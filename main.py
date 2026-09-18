@@ -20,7 +20,6 @@ import time
 import urllib.error
 import urllib.request
 import webbrowser
-from logging.handlers import RotatingFileHandler
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -31,17 +30,15 @@ import psutil
 import pystray
 from PIL import Image, ImageDraw
 
+import log_kit
+import paths
+import tray_kit
 import update_helper
+from paths import CONFIG_PATH, LOG_DIR, UPDATE_DIR, USER_DATA_DIR
 
 APP_DIR = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
-# 用户数据区住 LOCALAPPDATA（house 标准 D13）：exe 旁文件运行时被锁、在线更新要整目录替换。
-USER_DATA_DIR = Path(
-    os.environ.get("LOCALAPPDATA") or Path.home() / ".local" / "share"
-) / "opencodex-helper"
-CONFIG_PATH = USER_DATA_DIR / "config.json"
-LEGACY_CONFIG_PATH = APP_DIR / "config.json"   # 1.0 及以前的位置，仅迁移时读一次
-LOG_DIR = USER_DATA_DIR / "log"
-UPDATE_DIR = USER_DATA_DIR / "update"
+# 用户数据区/配置/日志/更新暂存：唯一出处 = T2 paths（数据区住 LOCALAPPDATA，
+# 1.0 及以前的 exe 旁旧配置由播种自动迁入）。
 SSH_KEYGEN = r"C:\Windows\System32\OpenSSH\ssh-keygen.exe"
 
 
@@ -72,33 +69,15 @@ DEFAULT_CONFIG = {
 }
 
 LOG_DIR.mkdir(parents=True, exist_ok=True)
-# 日志轮转（house 标准 D13）：单文件 1MB、保留 3 个滚存，总量 ~4MB 封顶
-_LOG_HANDLER = RotatingFileHandler(LOG_DIR / "opencodex-helper.log",
-                                   maxBytes=1 << 20, backupCount=3, encoding="utf-8")
-_LOG_HANDLER.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
-logging.basicConfig(
-    level=logging.INFO,
-    handlers=[_LOG_HANDLER],
-)
+_logger = log_kit.get_logger(LOG_DIR)   # T12：滚动 1MB×3（house 标准 D13）
+
 
 def _log(msg):
-    logging.info(msg)
+    _logger.info(msg)
 
 # ---------------- 配置 ----------------
-def _seed_config_from_legacy():
-    """1.0 及以前配置在 exe 旁；首次运行一次性迁到用户数据区。"""
-    if CONFIG_PATH.exists() or not LEGACY_CONFIG_PATH.exists():
-        return
-    try:
-        USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(LEGACY_CONFIG_PATH, CONFIG_PATH)
-        _log(f"config migrated: {LEGACY_CONFIG_PATH} -> {CONFIG_PATH}")
-    except OSError as e:
-        _log(f"config migrate failed: {e}")
-
-
 def load_config():
-    _seed_config_from_legacy()
+    paths.seed_config()   # T2：exe 旁旧配置一次性迁入用户数据区
     cfg = {}
     if CONFIG_PATH.exists():
         try:
@@ -989,54 +968,14 @@ def ocx_monitor_loop(icon):
             pass
 
 # ---------------- main ----------------
-MUTEX_NAME = r"Local\opencodex-helper-single-instance"
-_MUTEX_HANDLE = None
-
-
-def acquire_single_instance():
-    """拿到单实例互斥体返回 True；已有实例在跑返回 False（house 标准，同 reme-helper）。"""
-    global _MUTEX_HANDLE
-    if os.name != "nt":
-        return True
-    import ctypes
-    from ctypes import wintypes
-
-    ERROR_ALREADY_EXISTS = 183
-    try:
-        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        k32.CreateMutexW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR]
-        k32.CreateMutexW.restype = wintypes.HANDLE
-        handle = k32.CreateMutexW(None, False, MUTEX_NAME)
-        if not handle:
-            raise OSError(f"CreateMutexW failed err={ctypes.get_last_error()}")
-        if ctypes.get_last_error() == ERROR_ALREADY_EXISTS:
-            k32.CloseHandle(handle)
-            return False
-        _MUTEX_HANDLE = handle  # 故意持有到进程结束
-        return True
-    except Exception as exc:
-        _log(f"single-instance guard unavailable ({exc}); continuing")
-        return True
-
-
-def show_already_running_notice():
-    try:
-        import ctypes
-
-        ctypes.windll.user32.MessageBoxW(
-            None,
-            f"{APP_NAME} 已经在运行了。\n\n请看任务栏右下角通知区域里的图标。\n本次启动已取消，不会多开一个托盘。",
-            f"{APP_NAME} v{VERSION}",
-            0x40,
-        )
-    except Exception as exc:
-        _log(f"already-running notice failed: {exc}")
+# 单实例：命名互斥体（T7 tray_kit；名字不含版本号，跨版本互拦）
 
 
 def main():
-    if not acquire_single_instance():
+    if not tray_kit.acquire_single_instance("opencodex-helper", log=_log):
         _log("another instance is already running; exiting")
-        show_already_running_notice()
+        tray_kit.warn_duplicate_instance(APP_NAME,
+                                         hint="请看任务栏右下角通知区域里的图标，本次启动已取消，不会多开一个托盘。")
         return 0
     _log(f"{APP_NAME} v{VERSION} starting (pid {os.getpid()})")
     if "--smoke" in sys.argv:
