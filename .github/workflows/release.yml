@@ -37,7 +37,7 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $line = Select-String -Path main.py -Pattern '^VERSION = ' | Select-Object -First 1
+          $line = Select-String -Path src/main.py -Pattern '^VERSION = ' | Select-Object -First 1
           if (-not $line) { throw "VERSION not found in main.py" }
           $version = ($line.Line -split '"')[1]
           "version=$version" >> $env:GITHUB_OUTPUT
@@ -45,7 +45,7 @@ jobs:
           Write-Host "version=$version"
 
       - name: Compile gate
-        run: python -m py_compile main.py src/modules/appconfig/appconfig.py src/modules/update_helper/update_helper.py src/modules/paths/paths.py src/modules/log_kit/log_kit.py src/modules/tray_kit/tray_kit.py
+        run: python -m py_compile src/main.py src/modules/appconfig/appconfig.py src/modules/update_helper/update_helper.py src/modules/paths/paths.py src/modules/log_kit/log_kit.py src/modules/tray_kit/tray_kit.py
 
       - name: Build (PyInstaller onedir, noconsole)
         shell: pwsh
@@ -53,11 +53,10 @@ jobs:
           $pkg = "${{ steps.version.outputs.package }}"
           python -m PyInstaller --noconfirm --clean --onedir --noconsole `
             --name $pkg `
-            --paths src `
             --distpath build\dist_tmp `
             --workpath build\work `
             --specpath build `
-            main.py `
+            src/main.py `
             --add-data "$pwd\bin;bin" `
             --collect-all psutil `
             --collect-all tkinter `
