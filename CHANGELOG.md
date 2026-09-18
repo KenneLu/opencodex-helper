@@ -3,6 +3,13 @@
 All notable changes to opencodex-helper are documented here.
 The tagging convention matches the versions in this file.
 
+## Unreleased
+
+- Bilingual README (baseline 8): `README.md` is now the English canonical
+  version with `README.zh-CN.md` as the Chinese one, language switch lines on
+  top of both; stale 1.0-era packaging notes refreshed. Both files now ship
+  inside the release zip.
+
 ## 1.1.0
 
 - Online update: "检查助手更新 / 下载并更新助手" tray items backed by GitHub
