@@ -30,11 +30,8 @@ import psutil
 import pystray
 from PIL import Image, ImageDraw
 
-import log_kit
-import paths
-import tray_kit
-import update_helper
-from paths import CONFIG_PATH, LOG_DIR, UPDATE_DIR, USER_DATA_DIR
+from modules import log_kit, paths, tray_kit, update_helper
+from modules.paths import CONFIG_PATH, LOG_DIR, UPDATE_DIR, USER_DATA_DIR
 
 APP_DIR = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
 # 用户数据区/配置/日志/更新暂存：唯一出处 = T2 paths（数据区住 LOCALAPPDATA，
@@ -55,7 +52,7 @@ def _resource_path(name):
 PLINK_PATH = _resource_path("bin/plink.exe")
 
 APP_NAME = "opencodex 助手"
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 
 DEFAULT_CONFIG = {
     "targets": [],

@@ -10,6 +10,12 @@ The tagging convention matches the versions in this file.
   single-instance guard via `tray_kit.py` (T7) - byte-identical copies of the
   family template modules, verified by the build's sync_check gate.
 
+## 1.2.1
+
+- Internal structure only: family template modules moved under `modules/`
+  (imports via `from modules import ...`); sync_check and CI compile lists
+  updated. No behavior change.
+
 ## Unreleased
 
 - Bilingual README (baseline 8): `README.md` is now the English canonical
