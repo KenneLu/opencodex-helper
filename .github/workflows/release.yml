@@ -47,27 +47,11 @@ jobs:
       - name: Compile gate
         run: python -m py_compile src/main.py src/modules/appconfig/appconfig.py src/modules/update_helper/update_helper.py src/modules/paths/paths.py src/modules/log_kit/log_kit.py src/modules/tray_kit/tray_kit.py
 
-      - name: Build (PyInstaller onedir, noconsole)
-        shell: pwsh
-        run: |
-          $pkg = "${{ steps.version.outputs.package }}"
-          python -m PyInstaller --noconfirm --clean --onedir --noconsole `
-            --name $pkg `
-            --distpath build\dist_tmp `
-            --workpath build\work `
-            --specpath build `
-            src/main.py `
-            --add-data "$pwd\bin;bin" `
-            --collect-all psutil `
-            --collect-all tkinter `
-            --hidden-import pystray `
-            --hidden-import PIL.ImageDraw
-          if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
-          New-Item -ItemType Directory -Force -Path release | Out-Null
-          Move-Item "build\dist_tmp\$pkg" "release\$pkg"
-          # B3 规则：exe 不带版本号（自启注册表存完整路径，版本进 zip/目录名）
-          if (Test-Path "release\$pkg\$pkg.exe") { Move-Item "release\$pkg\$pkg.exe" "release\$pkg\opencodex-helper.exe" }
-          if (-not (Test-Path "release\$pkg\opencodex-helper.exe")) { throw "build produced no exe" }
+      # Same chain as the local build.bat: gates + PyInstaller + release layout
+      # (release\<name>-<ver>\<name>.exe, exe carries no version - B3) + frozen smoke.
+      - name: Build release
+        shell: cmd
+        run: build.bat norun nopause
           Copy-Item README.md, README.zh-CN.md "release\$pkg\"
 
       - name: Package zip
