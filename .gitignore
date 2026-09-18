@@ -10,3 +10,4 @@ __pycache__/
 # 运行产物（数据区在 %LOCALAPPDATA%\opencodex-helper\，这些是历史遗留/本地调试）
 log/
 config.json
+build_out.log

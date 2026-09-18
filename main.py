@@ -30,8 +30,9 @@ import psutil
 import pystray
 from PIL import Image, ImageDraw
 
-from modules import log_kit, paths, tray_kit, update_helper
-from modules.paths import CONFIG_PATH, LOG_DIR, UPDATE_DIR, USER_DATA_DIR
+sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))   # src/modules 布局引导
+from modules import log_kit, paths, tray_kit, update_helper   # noqa: E402
+from modules.paths import CONFIG_PATH, LOG_DIR, UPDATE_DIR, USER_DATA_DIR   # noqa: E402
 
 APP_DIR = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
 # 用户数据区/配置/日志/更新暂存：唯一出处 = T2 paths（数据区住 LOCALAPPDATA，
