@@ -121,6 +121,9 @@ def save_config():
             "dashboard_url": CFG.get("dashboard_url", "http://127.0.0.1:10100"),
             "ocx_cmd": CFG.get("ocx_cmd", ""),
             "opencodex_home": CFG.get("opencodex_home", ""),
+            # G4.2 条款 5：勾选持久化随 save_config 走——漏写会让任何一次存盘
+            # （改间隔/加目标等）把用户勾选抹回默认 False
+            "quit_stop_tunnels": bool(CFG.get("quit_stop_tunnels", False)),
         }
         CONFIG_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception as e:
