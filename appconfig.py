@@ -1,0 +1,9 @@
+# -*- coding: utf-8 -*-
+# TEMPLATE-FROM: _template/modules/appconfig/appconfig.py | TEMPLATE-VER: 1.0.0
+# opencodex-helper 参数区（T1：拷贝后唯一允许修改的文件）。
+# VERSION 不在此处：单一事实源在 main.py（build.bat / release.yml findstr 读取，D15）。
+APP_ID = "opencodex-helper"
+APP_NAME = "opencodex-helper"
+REPO_OWNER = "KenneLu"
+REPO_NAME = "opencodex-helper"
+EXE_NAME = "opencodex-helper.exe"

@@ -45,7 +45,7 @@ jobs:
           Write-Host "version=$version"
 
       - name: Compile gate
-        run: python -m py_compile main.py update_helper.py
+        run: python -m py_compile main.py update_helper.py appconfig.py
 
       - name: Build (PyInstaller onedir, noconsole)
         shell: pwsh
