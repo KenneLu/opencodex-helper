@@ -45,7 +45,7 @@ jobs:
           Write-Host "version=$version"
 
       - name: Compile gate
-        run: python -m py_compile main.py modules/update_helper.py appconfig.py modules/paths.py modules/log_kit.py modules/tray_kit.py
+        run: python -m py_compile main.py src/modules/appconfig/appconfig.py src/modules/update_helper/update_helper.py src/modules/paths/paths.py src/modules/log_kit/log_kit.py src/modules/tray_kit/tray_kit.py
 
       - name: Build (PyInstaller onedir, noconsole)
         shell: pwsh
@@ -53,6 +53,7 @@ jobs:
           $pkg = "${{ steps.version.outputs.package }}"
           python -m PyInstaller --noconfirm --clean --onedir --noconsole `
             --name $pkg `
+            --paths src `
             --distpath build\dist_tmp `
             --workpath build\work `
             --specpath build `
