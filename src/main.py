@@ -63,6 +63,9 @@ DEFAULT_CONFIG = {
     "dashboard_url": "http://127.0.0.1:10100",
     "ocx_cmd": "",
     "opencodex_home": "",
+    # G4.2 条款 5：退出清理勾选，持久化、默认不勾——不勾 = 只停本工具启动的
+    # 隧道（OWNED），外部手动启动的隧道不受影响（有界清理，条款 3/4）
+    "quit_stop_tunnels": False,
 }
 
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -611,10 +614,80 @@ def on_open_dashboard(icon, item):
 def on_open_log(icon, item):
     os.startfile(str(LOG_DIR))  # noqa
 
+def confirm_quit_dialog() -> dict | None:
+    """退出确认 + 清理勾选（G4.1 条款 4 / G4.2 条款 5，交互语义 = reme-helper 1.2.4）。
+
+    确认钮红底、取消默认焦点、模态 grab_set、Esc/关窗 = 取消（不退出）。
+    返回 {"confirmed": True, "stop_service": bool}；取消返回 None。
+    在托盘菜单线程内跑局部 tk 事件循环（wait_window）：对话框的生命周期完全
+    属于本线程，线程退出前窗口必然已销毁。
+    """
+    import tkinter as tk
+
+    result: dict = {}
+    root = tk.Tk()
+    root.withdraw()
+    dlg = tk.Toplevel()
+    dlg.title("退出确认")
+    dlg.resizable(False, False)
+    dlg.attributes("-topmost", True)
+    body = tk.Frame(dlg, padx=16, pady=12)
+    body.pack()
+    tk.Label(body, text="确认退出 opencodex-helper？",
+             font=("Microsoft YaHei UI", 11, "bold")).pack(anchor="w")
+    tk.Label(body, text="不勾选时只关闭本工具启动的隧道；外部手动启动的隧道不受影响。",
+             wraplength=340, justify="left", fg="#555555").pack(anchor="w", pady=(6, 0))
+    stop_var = tk.BooleanVar(value=bool(CFG.get("quit_stop_tunnels", False)))
+    tk.Checkbutton(body, text="顺便关闭所有隧道（含外部手动启动的）",
+                   variable=stop_var, anchor="w", justify="left").pack(fill="x", pady=(4, 4))
+    btns = tk.Frame(body)
+    btns.pack(fill="x", pady=(8, 0))
+    tk.Button(btns, text="退出",
+              command=lambda: (result.update(confirmed=True, stop_service=bool(stop_var.get())),
+                               dlg.destroy()),
+              bg="#c62828", fg="white", width=8).pack(side="right")
+    cancel_btn = tk.Button(btns, text="取消", command=dlg.destroy, width=8)
+    cancel_btn.pack(side="right", padx=(0, 8))
+    cancel_btn.focus_set()
+    dlg.grab_set()
+    dlg.protocol("WM_DELETE_WINDOW", dlg.destroy)
+    dlg.bind("<Escape>", lambda _e: dlg.destroy())
+    dlg.update_idletasks()
+    dlg.geometry(f"+{(dlg.winfo_screenwidth() - dlg.winfo_width()) // 2}"
+                 f"+{(dlg.winfo_screenheight() - dlg.winfo_height()) // 2}")
+    root.wait_window(dlg)
+    root.destroy()
+    return result or None
+
+
 def on_quit(icon, item):
-    _log("quit")
-    for t in CFG["targets"]:
-        kill_target_procs(t)
+    # G4.1 条款 4：退出必须过确认框；取消/关窗不退出。
+    choice = confirm_quit_dialog()
+    if not choice:
+        _log("quit cancelled by user")
+        return
+    stop_tunnels = bool(choice.get("stop_service"))
+    if CFG.get("quit_stop_tunnels") != stop_tunnels:
+        CFG["quit_stop_tunnels"] = stop_tunnels
+        save_config()
+    if stop_tunnels:
+        # 勾选才扩展到签名匹配（含外部手动启动的隧道）——用户主动要求的全停
+        for t in CFG["targets"]:
+            kill_target_procs(t)
+    else:
+        # 有界清理（G4.2 条款 3）：只停自己启动的（OWNED，进程句柄 terminate）；
+        # 外部手动启动的隧道放行（条款 4：放行是合法状态，下次启动自动重新接入）
+        owned = list(_tunnel_procs.items())
+        for _key, proc in owned:
+            try:
+                proc.terminate()
+            except Exception:
+                pass
+            _tunnel_procs.pop(_key, None)
+        if owned:
+            _log(f"quit: stopped {len(owned)} owned tunnel(s); external ones untouched")
+        else:
+            _log("quit: no owned tunnels; nothing to clean")
     icon.stop()
     if update_helper.PENDING_CMD:
         # 本进程退出后由脚本接管：等待 → robocopy 铺新版 → 重启新 exe → 自删
