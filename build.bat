@@ -61,8 +61,8 @@ if not errorlevel 1 (
   exit /b 1
 )
 
-echo [GATE] py_compile src\main.py + src\modules ...
-"%PY%" -m py_compile src\main.py src\modules\appconfig\appconfig.py src\modules\update_helper\update_helper.py src\modules\paths\paths.py src\modules\log_kit\log_kit.py src\modules\tray_kit\tray_kit.py
+echo [GATE] py_compile src\main.py + src\icons.py + src\modules ...
+"%PY%" -m py_compile src\main.py src\icons.py src\modules\appconfig\appconfig.py src\modules\update_helper\update_helper.py src\modules\paths\paths.py src\modules\log_kit\log_kit.py src\modules\tray_kit\tray_kit.py
 if errorlevel 1 (
   echo [ERROR] compile gate failed.
   if not defined NOPAUSE pause
@@ -138,16 +138,23 @@ if not exist "%RELEASE_DIR%\_internal\%APPNAME%-taskbar.ico" (
 )
 
 set "PYTHONUTF8=1"
+rem Instance isolation (F11/D2): the smoke run must not read or rewrite the
+rem developer's live AppData config/log - pin the data root to a throwaway
+rem dir inside the release folder, removed right after the smoke.
+set "OPENCODEX_HELPER_DATA_DIR=%RELEASE_DIR%\smoke-data"
 echo [TEST] frozen smoke ...
 "%FROZEN_EXE%" --smoke
 if errorlevel 1 (
-  echo [ERROR] smoke test failed. See %RELEASE_DIR%\log
+  echo [ERROR] smoke test failed. See %RELEASE_DIR%\smoke-data
+  set "OPENCODEX_HELPER_DATA_DIR="
   if not defined NOPAUSE pause
   exit /b 1
 )
+set "OPENCODEX_HELPER_DATA_DIR="
 type "%RELEASE_DIR%\smoke.log" 2>nul
 if exist "%RELEASE_DIR%\smoke.log" del /q "%RELEASE_DIR%\smoke.log"
 if exist "%RELEASE_DIR%\log" rmdir /s /q "%RELEASE_DIR%\log"
+if exist "%RELEASE_DIR%\smoke-data" rmdir /s /q "%RELEASE_DIR%\smoke-data"
 
 echo.
 echo [DONE] release: %FROZEN_EXE%
