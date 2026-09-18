@@ -3,12 +3,12 @@
 All notable changes to opencodex-helper are documented here.
 The tagging convention matches the versions in this file.
 
-## 1.2.0
+## Unreleased
 
-- Internal refactor (no behavior change): user-data paths via `paths.py`
-  (family template T2), rotating logging via `log_kit.py` (T12), and the
-  single-instance guard via `tray_kit.py` (T7) - byte-identical copies of the
-  family template modules, verified by the build's sync_check gate.
+- Bilingual README (baseline 8): `README.md` is now the English canonical
+  version with `README.zh-CN.md` as the Chinese one, language switch lines on
+  top of both; stale 1.0-era packaging notes refreshed. Both files now ship
+  inside the release zip.
 
 ## 1.2.1
 
@@ -16,12 +16,12 @@ The tagging convention matches the versions in this file.
   (imports via `from modules import ...`); sync_check and CI compile lists
   updated. No behavior change.
 
-## Unreleased
+## 1.2.0
 
-- Bilingual README (baseline 8): `README.md` is now the English canonical
-  version with `README.zh-CN.md` as the Chinese one, language switch lines on
-  top of both; stale 1.0-era packaging notes refreshed. Both files now ship
-  inside the release zip.
+- Internal refactor (no behavior change): user-data paths via `paths.py`
+  (family template T2), rotating logging via `log_kit.py` (T12), and the
+  single-instance guard via `tray_kit.py` (T7) - byte-identical copies of the
+  family template modules, verified by the build's sync_check gate.
 
 ## 1.1.0
 
