@@ -1,0 +1,20 @@
+{
+  "targets": [
+    {
+      "name": "Ubuntu24.04",
+      "user": "xzy_admin",
+      "host": "192.168.190.128",
+      "port": 22,
+      "key": "",
+      "remote_port": 10100,
+      "enabled": true
+    }
+  ],
+  "local_port": 10100,
+  "probe_interval_sec": 600,
+  "ssh_connect_timeout_sec": 6,
+  "probe_timeout_sec": 4,
+  "dashboard_url": "http://127.0.0.1:10100",
+  "ocx_cmd": "",
+  "opencodex_home": ""
+}
