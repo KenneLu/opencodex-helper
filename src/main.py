@@ -619,9 +619,15 @@ def on_quit(icon, item):
     # 富对话框失败 → 原生 askyesno（清理按持久化配置）→ 放行退出且默认不清理。
     choice = None
     try:
+        def _persist_quit_stop(value: bool) -> None:
+            # G4.2 条款 5（2026-09-18 用户定）：勾选一变即持久化，不等「退出」点击
+            CFG["quit_stop_tunnels"] = bool(value)
+            save_config()
+
         choice = tray_kit.confirm_quit_dialog(
             APP_NAME, "同时关闭当前隧道（含外部手动启动的）",
-            bool(CFG.get("quit_stop_tunnels", False)))
+            bool(CFG.get("quit_stop_tunnels", False)),
+            on_change=_persist_quit_stop)
     except Exception as exc:
         _log(f"quit dialog failed ({type(exc).__name__}: {exc}); falling back to native confirm")
         try:
@@ -638,10 +644,7 @@ def on_quit(icon, item):
     if not choice or not choice.get("go"):
         _log("quit cancelled by user")
         return
-    stop_tunnels = bool(choice.get("stop_service"))
-    if CFG.get("quit_stop_tunnels") != stop_tunnels:
-        CFG["quit_stop_tunnels"] = stop_tunnels
-        save_config()
+    stop_tunnels = bool(choice.get("stop_service"))   # 持久化已随勾选动作完成
     if stop_tunnels:
         # 勾选才扩展到签名匹配（含外部手动启动的隧道）——用户主动要求的全停
         for t in CFG["targets"]:
