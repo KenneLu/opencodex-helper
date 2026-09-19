@@ -105,5 +105,8 @@
 
   "quit_checkbox": "Also stop the current tunnels (including externally started ones)",
   "quit_native_text": "Quit opencodex-helper? Cleanup follows your saved setting (editable in the config afterwards).",
-  "dup_hint": "See the icon in the notification area; this launch was cancelled and no second tray was opened."
+  "dup_hint": "See the icon in the notification area; this launch was cancelled and no second tray was opened.",
+  "quit_confirm_yes": "Quit",
+  "quit_confirm_no": "Cancel",
+  "dup_running": "opencodex-helper is already running."
 }

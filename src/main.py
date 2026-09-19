@@ -676,7 +676,10 @@ def on_quit(icon, item):
                     return tray_kit.confirm_quit_dialog(
                         i18n.t("app_name"), i18n.t("quit_checkbox"),
                         bool(CFG.get("quit_stop_tunnels", False)),
-                        on_change=_persist_quit_stop)
+                        on_change=_persist_quit_stop,
+                        body_text=i18n.t("quit_native_text"),
+                        confirm_text=i18n.t("quit_confirm_yes"),
+                        cancel_text=i18n.t("quit_confirm_no"))
                 except Exception as exc:
                     _log(f"quit dialog failed ({type(exc).__name__}: {exc}); "
                          f"falling back to native confirm")
@@ -1271,7 +1274,10 @@ def main():
     global _TRAY_ICON
     if not tray_kit.acquire_single_instance("opencodex-helper", log=_log):
         _log("another instance is already running; exiting")
-        tray_kit.warn_duplicate_instance(i18n.t("app_name"), hint=i18n.t("dup_hint"))
+        tray_kit.warn_duplicate_instance(
+            i18n.t("app_name"),
+            message="\n\n".join([i18n.t("dup_running"),
+                                  i18n.t("dup_hint")]))
         return 0
     _log(f"{APP_NAME} v{VERSION} starting (pid {os.getpid()})")
     # T2/C-2（paths 1.1.4，MUST-WIRE）：让"本实例的 exe 不可被删除/改名"由**内核**保证，

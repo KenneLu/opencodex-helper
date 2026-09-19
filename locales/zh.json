@@ -105,5 +105,8 @@
 
   "quit_checkbox": "同时关闭当前隧道（含外部手动启动的）",
   "quit_native_text": "确定退出 opencodex-helper？清理选项按配置（退出后可在配置中修改）。",
-  "dup_hint": "请看任务栏右下角通知区域里的图标，本次启动已取消，不会多开一个托盘。"
+  "dup_hint": "请看任务栏右下角通知区域里的图标，本次启动已取消，不会多开一个托盘。",
+  "quit_confirm_yes": "退出",
+  "quit_confirm_no": "取消",
+  "dup_running": "opencodex-helper 已经在运行了。"
 }
