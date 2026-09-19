@@ -681,9 +681,9 @@ def on_quit(icon, item):
         else:
             _log("quit: no owned tunnels; nothing to clean")
     icon.stop()
-    if update_helper.pending_cmd():
+    if PENDING_UPDATE_CMD:
         # 本进程退出后由脚本接管：等待 → robocopy 铺新版 → 重启新 exe → 自删
-        os.system('start "" /min "%s"' % update_helper.pending_cmd())
+        os.system('start "" /min "%s"' % PENDING_UPDATE_CMD)
 
 # ---------------- 托盘 / 菜单 ----------------
 def refresh_icon(icon):
@@ -757,14 +757,25 @@ def status_line():
     e = enabled_count()
     return i18n.t("status_tunnels_connected", n, e) if n else i18n.t("status_tunnels_down")
 
+# 更新状态由**工具自持**，不读模板模块的可变全局（模板包曾 import * 拷死 PENDING_CMD
+# → apply.cmd 永不拉起；UPDATE_READY 曾恒 None → "下载并更新"恒灰）。稳定契约是返回值：
+# check_update() -> {"newer", "latest", ...}；download_and_prepare() -> 脚本路径。
+LATEST_VERSION = None
+PENDING_UPDATE_CMD = None
+
+
 def check_update_menu(_icon=None, _item=None):
+    global LATEST_VERSION
     def worker():
         result = update_helper.check_update(VERSION, force=True)
         if result.get("newer"):
+            LATEST_VERSION = result["latest"]
             notify_status_change(_icon, i18n.t("notify_update_available", result["latest"], VERSION), True)
         elif result.get("error"):
+            # 网络失败不动既有状态，避免误清已发现的新版本
             notify_status_change(_icon, i18n.t("notify_update_check_failed", result["error"]), False)
         else:
+            LATEST_VERSION = None
             notify_status_change(_icon, i18n.t("notify_update_latest", VERSION), True)
         try:
             _icon.update_menu()
@@ -774,13 +785,15 @@ def check_update_menu(_icon=None, _item=None):
 
 
 def download_update_menu(_icon=None, _item=None):
-    latest = update_helper.update_ready()
+    global PENDING_UPDATE_CMD
+    latest = LATEST_VERSION
     if not latest or not getattr(sys, "frozen", False):
         return
 
     def worker():
+        global PENDING_UPDATE_CMD
         try:
-            update_helper.download_and_prepare(latest, APP_DIR, UPDATE_DIR, log=_log)
+            PENDING_UPDATE_CMD = update_helper.download_and_prepare(latest, APP_DIR, UPDATE_DIR, log=_log)
             _icon.notify(i18n.t("notify_update_ready"), i18n.t("app_name"))
         except Exception as e:
             _log(f"update download failed: {e}")
@@ -804,7 +817,7 @@ def build_menu():
         # ② 更新区
         pystray.MenuItem(i18n.t("menu_check_update"), check_update_menu),
         pystray.MenuItem(i18n.t("menu_update_now"), download_update_menu,
-                         enabled=lambda item: update_helper.update_ready() is not None and getattr(sys, "frozen", False)),
+                         enabled=lambda item: LATEST_VERSION is not None and getattr(sys, "frozen", False)),
         pystray.Menu.SEPARATOR,
         # ③ 默认入口（双击托盘）
         pystray.MenuItem(i18n.t("menu_open_dashboard"), on_open_dashboard, default=True),
@@ -1062,9 +1075,11 @@ def main():
     threading.Thread(target=initial_probe_all, daemon=True).start()
 
     def startup_update_check():
+        global LATEST_VERSION
         time.sleep(8)
         result = update_helper.check_update(VERSION, force=False)
         if result.get("newer"):
+            LATEST_VERSION = result["latest"]
             try:
                 icon.notify(i18n.t("notify_update_available_menu", result["latest"], VERSION), i18n.t("app_name"))
             except Exception:
