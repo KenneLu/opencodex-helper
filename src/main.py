@@ -701,14 +701,117 @@ def on_quit(icon, item):
             _log("quit: pending update script was NOT launched")
 
 # ---------------- 托盘 / 菜单 ----------------
-def refresh_icon(icon):
+# E2-09：签名重画 + 菜单占用探测。旧形态每处状态变更都无条件 icon.update_menu()，
+# 而 pystray 的重建是 DestroyMenu + CreatePopupMenu：菜单正开着时重建 = 把它从用户
+# 手底下抽走（鼠标滑着滑着突然失焦）。改成：状态提成签名 → 只有签名变了才重建 →
+# 菜单开着时推迟，由 1.5s 补画拍补上。
+GUI_INMENUMODE = 0x00000004
+_TRAY_ICON = None
+
+
+def menu_is_open():
+    """系统弹出菜单是否正开着（E2-09）。
+
+    探测：菜单模态标记 GUI_INMENUMODE 挂在**调用 TrackPopupMenu 的那个线程**上，
+    遍历本进程线程去问；再以「前台窗口是系统菜单类 #32768」兜底。探测失败当没开着
+    （宁可多重建一次，也不能因为探测失败就永远不重建）。
+    """
+    if os.name != "nt":
+        return False
     try:
-        with _lock:
-            connected = global_connected_count() > 0
-        icon.icon = make_icon_image(connected)
-        icon.update_menu()
+        import ctypes
+        from ctypes import wintypes
+
+        class GUITHREADINFO(ctypes.Structure):
+            _fields_ = [("cbSize", wintypes.DWORD), ("flags", wintypes.DWORD),
+                        ("hwndActive", wintypes.HWND), ("hwndFocus", wintypes.HWND),
+                        ("hwndCapture", wintypes.HWND), ("hwndMenuOwner", wintypes.HWND),
+                        ("hwndMoveSize", wintypes.HWND), ("hwndCaret", wintypes.HWND),
+                        ("rcCaret", wintypes.RECT)]
+
+        user32 = ctypes.windll.user32
+        for thread in threading.enumerate():
+            tid = getattr(thread, "native_id", None)
+            if not tid:
+                continue
+            info = GUITHREADINFO()
+            info.cbSize = ctypes.sizeof(GUITHREADINFO)
+            if not user32.GetGUIThreadInfo(int(tid), ctypes.byref(info)):
+                continue
+            if info.flags & GUI_INMENUMODE:
+                return True
+        hwnd = user32.GetForegroundWindow()
+        if hwnd:
+            name = ctypes.create_unicode_buffer(32)
+            user32.GetClassNameW(hwnd, name, 32)
+            if name.value == "#32768":
+                return True
     except Exception:
-        pass
+        return False
+    return False
+
+
+def _menu_signature():
+    """菜单上会「显示出来」的全部状态：只有它变了才值得重建（E2-09/§D6）。
+
+    **漏一项 = 那一项变了菜单不刷新**。逐项对照 build_menu()：
+      · 隧道信息行 status_line() ← 每个目标的（key / 名字 / 地址 / 启用 / 连通 / 令牌）
+      · opencodex 在线行与安全行 ← _ocx_state
+      · 「下载并更新」的 enabled ← LATEST_VERSION
+      · 自启的 checked ← 注册表
+      · 探测间隔子菜单的 checked ← CFG
+      · 全部菜单文案 ← i18n.current_lang()
+    目标的 name/host 也在签名里——改名或改地址同样要让菜单重画。
+    """
+    with _lock:
+        tunnels = tuple(
+            (target_key(t), t.get("name"), t.get("host"), bool(t.get("enabled", True)),
+             bool(_state.get(target_key(t))), _token_status.get(target_key(t)))
+            for t in CFG["targets"]
+        )
+    return (
+        i18n.current_lang(),
+        tunnels,
+        tuple(sorted(_ocx_state.items())),
+        LATEST_VERSION is not None,
+        autostart.is_autostart_enabled(),
+        CFG.get("probe_interval_sec", 600),
+    )
+
+
+def rebuild_menu():
+    """MenuSignature 的落地动作：真正重画图标与菜单句柄（只由签名变化驱动）。"""
+    icon = _TRAY_ICON
+    if icon is None:
+        return
+    with _lock:
+        connected = global_connected_count() > 0
+    icon.icon = make_icon_image(connected)
+    icon.menu = build_menu()
+    icon.update_menu()
+
+
+MENU_SIG = tray_kit.MenuSignature(rebuild_menu, menu_is_open=menu_is_open, log=_log)
+
+
+def refresh_icon(icon):
+    """状态变了就重画；菜单开着时自动推迟（由 menu_refresh_loop 的补画拍补上）。
+
+    调用点遍布状态变更处，保持原签名不变——只是从「每次都重建」变成「签名变了才重建」。
+    """
+    MENU_SIG.update(_menu_signature())
+
+
+def menu_refresh_loop():
+    """1.5s 补画拍（tray_kit 三循环之②）：把「菜单开着时被推迟」的那次重画补上。"""
+    while True:
+        time.sleep(1.5)
+        try:
+            refresh_icon(_TRAY_ICON)
+            MENU_SIG.flush_deferred()
+        except Exception as exc:
+            _log(f"menu refresh failed: {exc}")
+
 
 def notify_status_change(icon, name, ok):
     msg = i18n.t("tunnel_connected", name) if ok else i18n.t("tunnel_disconnected", name)
@@ -1080,6 +1183,7 @@ def smoke():
 
 
 def main():
+    global _TRAY_ICON
     if not tray_kit.acquire_single_instance("opencodex-helper", log=_log):
         _log("another instance is already running; exiting")
         tray_kit.warn_duplicate_instance(i18n.t("app_name"), hint=i18n.t("dup_hint"))
@@ -1121,8 +1225,11 @@ def main():
     _log(f"ocx initial health: ok={_ocx_state['ok']} port={_ocx_state['port']} safety={_ocx_state['safety']}")
     icon = pystray.Icon("opencodex-helper", icon=make_icon_image(False),
                         title=f'{i18n.t("app_name")} v{VERSION}', menu=build_menu())
+    _TRAY_ICON = icon   # MenuSignature 的重建动作要用（状态变更处只调 refresh_icon）
     threading.Thread(target=monitor_loop, args=(icon,), daemon=True).start()
     threading.Thread(target=ocx_monitor_loop, args=(icon,), daemon=True).start()
+    # E2-09 第②拍：菜单开着时被推迟的重画在这里补上（探针间隔最长 30 分钟，不能靠它）。
+    threading.Thread(target=menu_refresh_loop, name="ocx-menu-refresh", daemon=True).start()
 
     def _setup_tray(_icon):
         # 传入自定义 setup 后，pystray 不会再自动设置 visible=True。
