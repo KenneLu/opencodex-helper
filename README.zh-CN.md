@@ -1,12 +1,12 @@
-# opencodex 助手（opencodex-helper）v1.2.1
+# opencodex 助手（opencodex-helper）v1.2.2
 
 [English](README.md) | **简体中文**
 
 Windows 托盘工具：把**多台 VM 的 127.0.0.1:10100** 转发到**本机 opencodex（127.0.0.1:10100）**。VM 里的 cc-switch 无需改配置即可使用 Windows 上的 opencodex。支持多目标、密钥/密码两种认证、令牌扫描与一键生成。
 
-未发版（版本档位待用户确认，暂按 +0.0.1 起草；完整 `build.bat` 门禁已跑绿）：
+1.2.2 起的补充能力：
 
-- **开机自启（G4.1）**：内联注册表代码改为家族模板件 `modules/autostart`。打包态优先指向稳定安装位（`%LOCALAPPDATA%\opencodex-helper\app\opencodex-helper.exe`，存在时），否则退回当前 exe；每次启动执行 `migrate_autostart()`，把指向"已消失的 exe"的 Run 键静默修回。本机注册表当前正指向已被删除的 `out\...\opencodex-helper-pkg-20260822-164631246\opencodex-helper-1.0.exe`。若注册表里根本没有这个值，则不会写任何东西——工具绝不自行新增自启项。
+- **开机自启（G4.1）**：内联注册表代码改为家族模板件 `modules/autostart`。打包态优先指向稳定安装位（`%LOCALAPPDATA%\opencodex-helper\app\opencodex-helper.exe`，存在时），否则退回当前 exe；每次启动执行 `migrate_autostart()`，把指向"已消失的 exe"的 Run 键静默修回——**本机已实测**：原键指向已被删除的 `out\...\opencodex-helper-pkg-20260822-164631246\opencodex-helper-1.0.exe`，首次启动 1.2.2 后即被改写为存在的 `release\opencodex-helper-1.2.2\opencodex-helper.exe`。若注册表里根本没有这个值，则不会写任何东西——工具绝不自行新增自启项。
 
 1.1.0 起的补充能力：**在线更新**（菜单「检查助手更新 / 下载并更新助手」，启动时自动检查，zip + sha256 校验，退出托盘后自动完成替换并重启）；**数据区**迁至 `%LOCALAPPDATA%\opencodex-helper\`（旧 exe 旁配置自动迁移，日志 1MB×3 滚动）；**单实例**守护（重复启动弹提示并退出）。
 
@@ -71,7 +71,7 @@ Windows 托盘工具：把**多台 VM 的 127.0.0.1:10100** 转发到**本机 op
 
 源码结构：`src/main.py`、`src/modules/`（家族模板件：appconfig、autostart、log_kit、paths、tray_kit、update_helper）、`build.bat`、`README.md` / `README.zh-CN.md`、`bin/plink.exe`（内置密码引擎）、`.github/workflows/`（CI）。
 
-正式发布走 CI：推送 `v<semver>` tag（如 `v1.2.1`），release workflow 会在 GitHub Releases 发布 zip + sha256——与站内更新器消费的布局一致。版本号单一事实源在 `main.py` 的 `VERSION`；随包 exe 名为不带版本号的 `opencodex-helper.exe`。
+正式发布走 CI：推送 `v<semver>` tag（如 `v1.2.2`），release workflow 会在 GitHub Releases 发布 zip + sha256——与站内更新器消费的布局一致。版本号单一事实源在 `main.py` 的 `VERSION`；随包 exe 名为不带版本号的 `opencodex-helper.exe`。
 
 本机构建：`build.bat nopause`（编译门禁 → PyInstaller 打包 → 冻结冒烟），产物在 `release\opencodex-helper-<版本>\`。
 
@@ -81,7 +81,7 @@ Windows 托盘工具：把**多台 VM 的 127.0.0.1:10100** 转发到**本机 op
 
 按 §I-10 逐条注明未触发能力及原因：
 
-- **稳定安装位（§G4.1-1）**：`paths.INSTALL_EXE`（`%LOCALAPPDATA%\opencodex-helper\app\`）已定义、自启也已优先指向它，但更新器仍是原地替换当前包，还没有流程把新版本装进稳定位。
+- **稳定安装位（§G4.1-1）—— 只做了"优先指向"，机制本身仍未实现**：`paths.INSTALL_EXE`（`%LOCALAPPDATA%\opencodex-helper\app\`）已定义、自启也优先指向它，但没有任何流程把版本装进稳定位（更新器仍是原地替换当前包）。在"稳定位不存在"的常态下（本机即如此），`get_autostart_cmd()` 退回**带版本号**的 `release\opencodex-helper-<版本>\`——这也是本次自愈后 Run 键实际持有的值；该目录改名/被删仍会断链，靠下次启动自愈兜底。完整 G4.1-1（更新器把版本装进稳定位）仍是待办。
 - **有界清理（§G4.2-3）—— 已知违规，本轮未修**：`kill_target_procs()`（main.py 约 238-256 行）仍会按命令行签名击杀**所有**匹配的 ssh/plink 进程，且被 `start_target` / `stop_target` / `on_delete_target` / `on_stop_all` 调用；用户手动为同一目标起的隧道可能被误杀。修复需要重构隧道的所有权/生命周期并做人工回归，故留待单独改动（见 REVIEW.md 发现 #6）。
 - **隧道接入（§G4.2-2/4）**：没有 ADOPTED/OWNED 所有权模型，"已连接"由每拍健康探测得出，而非登记后的固定句柄。
 - **i18n（§T1）**：仓库已公开，触发条件成立，但没有 `i18n` 模块，界面文案全部中文硬编码。

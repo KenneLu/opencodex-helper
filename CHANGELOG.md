@@ -3,33 +3,35 @@
 All notable changes to opencodex-helper are documented here.
 The tagging convention matches the versions in this file.
 
-## Unreleased
+## 1.2.2
 
-Version tier pending owner confirmation (D16): drafted as +0.0.1 (1.2.1 -> 1.2.2);
-the number and this section name land only after sign-off (team-lead ruling).
-
-**Build gate green**: the owner released the running instance, so
-`build.bat nopause norun` was re-run in full - sync_check + PyInstaller +
-frozen smoke (`SMOKE OK`), artifact
-`release\opencodex-helper-1.2.1\opencodex-helper.exe`. The previous release
-folder was kept aside as `release\opencodex-helper-1.2.1.bak-pre-autostart`
-(not deleted). App-start self-heal against the live registry is still not
-run (it would write the user's Run value); a controlled module-level call
-against the real dead link was made earlier with the original value backed
-up and restored.
+Patch release (owner ruling, D15: +0.0.1).
 
 - Autostart (G4.1): the inline Run-key code was replaced by the family
   template module `modules/autostart` (T3, 1.1.1, byte-identical copy;
-  build.bat's py_compile list now covers it). Packaged builds now prefer the
+  build.bat's py_compile list covers it). Packaged builds now prefer the
   stable install location (`%LOCALAPPDATA%\opencodex-helper\app\
-  opencodex-helper.exe`) when it exists instead of always pinning the running
-  package folder.
-- Autostart self-heal (G4.1-3/5): `migrate_autostart()` runs at startup and
-  silently rewrites a Run value whose exe no longer exists. The live machine
-  has exactly this: the key points at the deleted
-  `out\...\opencodex-helper-pkg-20260822-164631246\opencodex-helper-1.0.exe`.
-  The smoke path returns before the migration, so `--smoke` stays read-only
-  and never touches the real registry (D3-03).
+  opencodex-helper.exe`) when it exists and fall back to the current exe
+  otherwise.
+- Autostart self-heal (G4.1-3/5), **verified live on this machine**: the Run
+  key pointed at the deleted
+  `out\opencodex-helper-pkg-20260822-164631246\opencodex-helper-1.0.exe`.
+  Starting the frozen 1.2.2 build once (isolated `OPENCODEX_HELPER_DATA_DIR`)
+  rewrote it to the existing
+  `release\opencodex-helper-1.2.2\opencodex-helper.exe` and logged
+  `autostart migrated: <old> -> <new>`. The owner approved keeping the
+  repaired value (the dead link was not restored). The smoke path returns
+  before the migration, so `--smoke` stays read-only (D3-03); starting with
+  no Run value at all is a strict no-op (never creates an entry).
+- Template resync: `paths.py` -> 1.1.3, `tray_kit.py` -> 2.0.2 (mechanical;
+  call sites unchanged).
+- Build gate: `build.bat nopause norun` green -> `SMOKE OK`,
+  `release\opencodex-helper-1.2.2\opencodex-helper.exe`.
+- Honest limitation: **the full stable-install mechanism (G4.1-1) is still
+  not implemented**. With no `...\app\` folder, autostart now points at the
+  versioned `release\opencodex-helper-1.2.2\` path (that is exactly what the
+  live key holds now), so renaming/deleting that folder strands the key until
+  the next start self-heals it. Tracked in the README "known gaps" section.
 
 ## 1.2.1
 
