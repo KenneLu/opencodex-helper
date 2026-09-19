@@ -32,10 +32,13 @@ from PIL import Image, ImageDraw
 
 from modules import autostart, i18n, log_kit, paths, tray_kit, update_helper   # noqa: E402
 from modules.appconfig import APP_ID   # noqa: E402
-from modules.paths import CONFIG_PATH, LOG_DIR, UPDATE_DIR, USER_DATA_DIR   # noqa: E402
+from modules.paths import APP_DIR, CONFIG_PATH, LOG_DIR, UPDATE_DIR, USER_DATA_DIR   # noqa: E402
 
-APP_DIR = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
-# 用户数据区/配置/日志/更新暂存：唯一出处 = T2 paths（数据区住 LOCALAPPDATA，
+# 程序本体目录**不在本文件派生**：唯一出处是 T2 paths 的 APP_DIR（打包后 = exe 所在
+# 目录，开发态 = 仓库根）。这里曾另有一份同名派生量（开发态 = src/），与 paths 分叉，
+# 只在冻结态碰巧重合——于是 dev 下 PLINK_PATH 解析成 src/bin/plink.exe 取不到，
+# 而构建与冒烟全绿。
+# 用户数据区/配置/日志/更新暂存同样出自 T2 paths（数据区住 LOCALAPPDATA，
 # 1.0 及以前的 exe 旁旧配置由播种自动迁入）。
 SSH_KEYGEN = r"C:\Windows\System32\OpenSSH\ssh-keygen.exe"
 

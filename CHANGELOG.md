@@ -10,6 +10,20 @@ that dev work lands as local commits only and the version changes only when a
 release is cut (STANDARDS "发版节奏" clause 7). The 1.2.2 bump made earlier in
 this batch was rolled back to 1.2.1.
 
+- **`APP_DIR` now has exactly one source** (`paths.APP_DIR`). `main.py` used to derive
+  its own copy - right when frozen (the exe dir) but `src/` in dev, where `paths` says
+  the repo root. The two only had to agree in the packaged build, so the split stayed
+  invisible: in dev `PLINK_PATH` resolved to `src/bin/plink.exe`, which does not exist,
+  while every gate stayed green. The local definition is gone and `APP_DIR` is imported
+  from `modules.paths` with the rest of the paths; `bin/` lives at the repo root, which
+  is also what `--add-data` bundles.
+- Tests: `test_startup_path.py` pins both halves of the `APP_DIR` fix - it is the same
+  object as `modules.paths.APP_DIR`, and `plink.exe` really is a file in dev mode.
+- Template resync: `modules/update_helper` -> 1.4.2 (1.4.1 made `:stage_invalid` preserve
+  the scene like `:install_failed`; 1.4.2 guards the third `start` - the one after a
+  restore - because "the restore did not error" is not "the exe is back"). `.py` and
+  `README.md` copied; the `.py` header re-stamped with the new TEMPLATE-VER.
+
 - Update housekeeping is now actually wired in (T4 收尾): `sweep_stale_update_dirs()`
   runs at startup and removes `<APP_ID>-update-*` staging dirs that an interrupted
   updater left in %TEMP% (only those older than 1 h, so an in-flight update is never
