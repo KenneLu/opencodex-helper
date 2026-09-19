@@ -56,6 +56,13 @@ The tagging convention matches the versions in this file.
     the target being absent: `start` on a missing target pops a *modal* box), and the
     wait is bounded with the elapsed time reported. A timeout gets its own red
     assertion naming the first suspect - **a modal box**, not a slow script.
+- **Test stand-ins now copy the production signature exactly** (lead ruling J-坑: a
+  stand-in more permissive than the real thing manufactures a false green). Two stubs in
+  `test_startup_path.py` were written `lambda *a, **k: ...` while the templates declare
+  `sweep_stale_update_dirs(max_age=3600.0)` and `pop_failed_update_note(update_dir,
+  log=...)` - so a call with the *wrong* arguments would have been silently accepted, the
+  exact shape that hid the whole `log` contract conflict. They now spell the real
+  parameters out; strictness may cost a false red, which is safe.
 
 Version number is intentionally NOT bumped: as of 2026-09-19 the owner ruled
 that dev work lands as local commits only and the version changes only when a
