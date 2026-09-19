@@ -18,7 +18,7 @@
   "menu_open_logs": "打开助手日志目录",
   "menu_autostart": "开机自启",
   "menu_refresh_interval": "状态刷新间隔",
-  "menu_language": "语言 / Language",
+  "menu_language": "English / 中文",
   "menu_quit": "退出",
 
   "probe_20s": "20 秒",

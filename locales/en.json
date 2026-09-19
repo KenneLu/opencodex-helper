@@ -18,7 +18,7 @@
   "menu_open_logs": "Open helper log folder",
   "menu_autostart": "Autostart",
   "menu_refresh_interval": "Status refresh interval",
-  "menu_language": "Language / 语言",
+  "menu_language": "English / 中文",
   "menu_quit": "Quit",
 
   "probe_20s": "20 s",
