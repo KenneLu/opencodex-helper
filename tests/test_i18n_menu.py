@@ -11,8 +11,9 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
+from _cleanup import rmtree_cleanup, scratch_dir  # noqa: E402  （R2 位置 + 删前放句柄）
 
-_TMP = tempfile.mkdtemp(prefix="ocx-i18n-menu-test-")
+_TMP = scratch_dir("ocx-i18n-menu-test-")
 os.environ["OPENCODEX_HELPER_DATA_DIR"] = _TMP
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -80,6 +81,6 @@ M.on_toggle_language(icon, None)
 check("switch back to Chinese", i18n.current_lang() == "zh"
       and "退出" in menu_labels(icon.menu))
 
-shutil.rmtree(_TMP, ignore_errors=True)
+check("temp dir cleaned up (no %TEMP% leak)", rmtree_cleanup(_TMP), str(_TMP))
 print("I18N MENU TEST " + ("FAILED: " + ",".join(FAILS) if FAILS else "OK"), flush=True)
 sys.exit(1 if FAILS else 0)
