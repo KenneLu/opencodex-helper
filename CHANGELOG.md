@@ -4,6 +4,18 @@ All notable changes to opencodex-helper are documented here.
 The tagging convention matches the versions in this file.
 
 ## Unreleased
+- **Registered: `modules/service_link` is an evaluated, inline-equivalent difference - a form gap, not a capability gap**
+  (lead ruling: keep the inline form now, evaluate adoption next round). The ownership handling is
+  inline here: `_tunnel_procs` holds the OWNED tunnel handles, the quit path stops exactly those and
+  leaves externally started tunnels alone, and the signature-based sweep runs only when the persisted
+  `quit_stop_tunnels` checkbox is ticked (default off). That is why the template README's "ocx kills
+  by signature on exit" is now a **historical** counter-example, not the current behaviour. What is
+  missing is the template module's *shape* (`refresh` / `can_start` / `state` / `spectators` in one
+  object), not the behaviour. Adopting it means editing the start/stop/quit paths, which the user can
+  see, so it is deliberately kept out of the current GUI-verification window. **Follow-up obligation
+  (a registration, not an exemption):** next round, either adopt `service_link` (copy the file, inject
+  the `probe` / `launch` / `terminate` / `graceful` / `adopt_pid` callbacks) or record a verifiable
+  reason why the inline form is better - per B4 principle 3 and the two allowed-difference premises.
 - **The tray menu is now rebuilt only when something it displays actually changed**
   (E2-09). Every state change used to call `icon.update_menu()` unconditionally, and
   pystray rebuilds by `DestroyMenu` + `CreatePopupMenu` - so a rebuild while the menu
