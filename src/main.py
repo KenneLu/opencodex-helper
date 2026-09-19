@@ -197,6 +197,19 @@ def enabled_count():
 
 # ---------------- 探测 / 令牌扫描 ----------------
 def probe_target(t):
+    """探测目标隧道是否健康。**失败方向 = 放行**（#45 / STANDARDS §D3.2）。
+
+    返回值被用来决定 `kill_target_procs`（**杀用户正在用的那条隧道**），所以
+    "探测**自身**出错"（ssh 不存在、超时、属性缺失）**不得**与"确定不健康"折叠成同一个
+    `False` —— 那等于"我自己坏了就去拆用户的东西"，与本家族守卫类代码
+    （`acquire_single_instance` / `mutex_name_is_valid`，失败一律放行）相反。
+
+    **区分**（这是本函数唯一需要看懂的地方）：
+    * `run_hidden` **返回非零**（ssh 连上了但握手/命令失败）⇒ 探测**跑成了** ⇒ 正常判 `False`；
+    * `run_hidden` **抛异常**（超时 / 可执行文件缺失）⇒ 探测**没跑成** ⇒ `return True`（放行）
+      并记一行日志。调用方据此不会误杀；代价是"真的坏了但探测也坏了"时会以为已连接
+      —— 这正是 D3.2 选的失败侧（少一层判断 ≫ 拆用户的东西）。
+    """
     key = target_key(t)
     remote = f"curl -sf -m {CFG['probe_timeout_sec']} http://127.0.0.1:{t.get('remote_port',10100)}/healthz"
     tok = _token_status.get(key)
@@ -206,8 +219,9 @@ def probe_target(t):
                            timeout=CFG["ssh_connect_timeout_sec"] + CFG["probe_timeout_sec"] + 8)
             if r.returncode == 0 and '"service":"opencodex"' in r.stdout:
                 return True
-        except Exception:
-            pass
+        except Exception as exc:
+            _log(f"probe {t['name']}: ssh probe errored ({exc}) -> 放行（不据此判定不健康，#45）")
+            return True
     pw = _pw_cache.get(key)
     if pw and PLINK_PATH.exists():
         try:
@@ -215,8 +229,9 @@ def probe_target(t):
                            timeout=CFG["ssh_connect_timeout_sec"] + CFG["probe_timeout_sec"] + 8)
             if r.returncode == 0 and '"service":"opencodex"' in r.stdout:
                 return True
-        except Exception:
-            pass
+        except Exception as exc:
+            _log(f"probe {t['name']}: plink probe errored ({exc}) -> 放行（不据此判定不健康，#45）")
+            return True
     return False
 
 def scan_target_token(t):
