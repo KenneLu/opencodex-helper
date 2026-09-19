@@ -31,6 +31,7 @@ import pystray
 from PIL import Image, ImageDraw
 
 from modules import autostart, i18n, log_kit, paths, tray_kit, update_helper   # noqa: E402
+from modules.appconfig import APP_ID   # noqa: E402
 from modules.paths import CONFIG_PATH, LOG_DIR, UPDATE_DIR, USER_DATA_DIR   # noqa: E402
 
 APP_DIR = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
@@ -1041,6 +1042,11 @@ def smoke():
     必须在 main() 的 acquire_single_instance 之前调用——否则用户常驻实例在跑时
     冒烟会拿不到互斥体，转而走重复启动提示（模态 MessageBox，会把构建挂死）。
     """
+    # D3.1 / C-10 守卫覆盖探针：名字合法性（不占锁、不弹窗），须与运行期守卫同名。
+    if not tray_kit.mutex_name_is_valid(APP_ID):
+        print("FAIL mutex name is illegal for %s" % APP_ID)
+        return 1
+    print(f"mutex name ok: {APP_ID}")
     print(f"version: {VERSION}")
     print(f"app: {APP_NAME}")
     print(f"config: {CONFIG_PATH}")

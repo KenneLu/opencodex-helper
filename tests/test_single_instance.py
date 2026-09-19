@@ -55,6 +55,10 @@ if h:
     k32.CloseHandle(h)
 
 ctypes.set_last_error(0)
+check("probe accepts the derived name", tray_kit.mutex_name_is_valid(APP_ID) is True)
+check("probe rejects the old illegal name",
+      tray_kit.mutex_name_is_valid(APP_ID, r"Local\%s\SingleInstance" % APP_ID) is False)
+
 bad = k32.CreateMutexW(None, False, r"Local\%s\SingleInstance" % APP_ID)
 bad_err = ctypes.get_last_error()
 check("old illegal name still fails", not bad and bad_err == 3, "err=%s" % bad_err)
