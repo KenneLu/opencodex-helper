@@ -263,6 +263,14 @@ goto :smoke_done
 echo [ERROR] smoke test failed. See %RELEASE_DIR%\smoke-data
 set "OPENCODEX_HELPER_DATA_DIR="
 set "OPENCODEX_HELPER_CONFIG="
+rem Report BEFORE cleaning (C-32): the failure evidence must reach the build
+rem output first. The success path above already does report-then-clean; what
+rem this path was missing is the REPORT step, not the cleanup. Ordering the
+rem cleanup earlier would delete the evidence before anyone could read it.
+type "%RELEASE_DIR%\smoke.log" 2>nul
+if exist "%RELEASE_DIR%\smoke.log" del /q "%RELEASE_DIR%\smoke.log"
+if exist "%RELEASE_DIR%\log" rmdir /s /q "%RELEASE_DIR%\log"
+if exist "%RELEASE_DIR%\smoke-data" rmdir /s /q "%RELEASE_DIR%\smoke-data"
 if not defined NOPAUSE pause
 exit /b 1
 :smoke_done
