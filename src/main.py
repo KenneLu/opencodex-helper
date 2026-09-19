@@ -281,7 +281,6 @@ def start_target(t):
         _state[key] = True
         _log(f"start target {t['name']}: already connected")
         return False, i18n.t("tgt_connected_skip", t["name"])
-    kill_target_procs(t)
     tok = _token_status.get(key)
     pw = _pw_cache.get(key)
     if tok is False and not pw:
@@ -291,6 +290,11 @@ def start_target(t):
             _log(f"start target {t['name']}: password required, cancelled")
             return False, i18n.t("tgt_need_password", t["name"])
         _pw_cache[key] = pw
+    # #45 ①：清理陈旧隧道必须排在"确定要启动"**之后**。放在前面时，用户在口令框上
+    # 按取消 → 我们一条隧道都没起，却已经把**用户正在用的那条**杀掉了 —— "我起不来
+    # 却先动手拆"。这一格今天不影响本机（密钥可用 ⇒ probe 为真 ⇒ 上面就早退了），
+    # 但口令型目标冷启动必然走到这里。
+    kill_target_procs(t)
     if tok is False or (pw and tok is not True):
         ensure_plink_hostkey(t, pw)
         cmd = plink_args(t, pw)
