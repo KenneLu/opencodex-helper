@@ -201,13 +201,19 @@ if not exist "%RELEASE_DIR%\_internal\%APPNAME%-taskbar.ico" (
 set "PYTHONUTF8=1"
 if defined NOSMOKE goto :smoke_skip
 rem Instance isolation (F11/D2): the smoke run must not read or rewrite the
-rem developer's live AppData config/log - pin the data root to a throwaway
-rem dir inside the release folder, removed right after the smoke.
+rem developer's live AppData config/log - DUAL PIN (both env vars) so the config
+rem file is pinned too, not just the data root. Both point into a throwaway dir
+rem inside the release folder, removed right after the smoke.
 set "OPENCODEX_HELPER_DATA_DIR=%RELEASE_DIR%\smoke-data"
+rem Pin the config to a throwaway COPY so the smoke never rewrites the shipped one.
+if not exist "%RELEASE_DIR%\smoke-data" mkdir "%RELEASE_DIR%\smoke-data"
+copy /y "%RELEASE_DIR%\config.json" "%RELEASE_DIR%\smoke-data\config.json" >nul
+set "OPENCODEX_HELPER_CONFIG=%RELEASE_DIR%\smoke-data\config.json"
 echo [TEST] frozen smoke ...
 "%FROZEN_EXE%" --smoke
 if errorlevel 1 goto :smoke_fail
 set "OPENCODEX_HELPER_DATA_DIR="
+set "OPENCODEX_HELPER_CONFIG="
 type "%RELEASE_DIR%\smoke.log" 2>nul
 if exist "%RELEASE_DIR%\smoke.log" del /q "%RELEASE_DIR%\smoke.log"
 if exist "%RELEASE_DIR%\log" rmdir /s /q "%RELEASE_DIR%\log"
@@ -219,6 +225,7 @@ goto :smoke_done
 :smoke_fail
 echo [ERROR] smoke test failed. See %RELEASE_DIR%\smoke-data
 set "OPENCODEX_HELPER_DATA_DIR="
+set "OPENCODEX_HELPER_CONFIG="
 if not defined NOPAUSE pause
 exit /b 1
 :smoke_done
