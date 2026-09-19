@@ -4,7 +4,7 @@
 
 Windows 托盘工具：把**多台 VM 的 127.0.0.1:10100** 转发到**本机 opencodex（127.0.0.1:10100）**。VM 里的 cc-switch 无需改配置即可使用 Windows 上的 opencodex。支持多目标、密钥/密码两种认证、令牌扫描与一键生成。
 
-未发版（版本档位待用户确认，暂按 +0.0.1 起草；完整 `build.bat` 门禁待用户释放常驻实例后补跑）：
+未发版（版本档位待用户确认，暂按 +0.0.1 起草；完整 `build.bat` 门禁已跑绿）：
 
 - **开机自启（G4.1）**：内联注册表代码改为家族模板件 `modules/autostart`。打包态优先指向稳定安装位（`%LOCALAPPDATA%\opencodex-helper\app\opencodex-helper.exe`，存在时），否则退回当前 exe；每次启动执行 `migrate_autostart()`，把指向"已消失的 exe"的 Run 键静默修回。本机注册表当前正指向已被删除的 `out\...\opencodex-helper-pkg-20260822-164631246\opencodex-helper-1.0.exe`。若注册表里根本没有这个值，则不会写任何东西——工具绝不自行新增自启项。
 
@@ -81,7 +81,6 @@ Windows 托盘工具：把**多台 VM 的 127.0.0.1:10100** 转发到**本机 op
 
 按 §I-10 逐条注明未触发能力及原因：
 
-- **本次 autostart 改动尚未跑完整构建门禁**：`build.bat` 在有 `opencodex-helper.exe` 实例运行时拒绝构建，冻结冒烟也需要单实例互斥体，故门禁待用户释放常驻实例后补跑。静态检查已绿（`py_compile`、重定向数据区的 `import main`、`sync_check`）。
 - **稳定安装位（§G4.1-1）**：`paths.INSTALL_EXE`（`%LOCALAPPDATA%\opencodex-helper\app\`）已定义、自启也已优先指向它，但更新器仍是原地替换当前包，还没有流程把新版本装进稳定位。
 - **有界清理（§G4.2-3）—— 已知违规，本轮未修**：`kill_target_procs()`（main.py 约 238-256 行）仍会按命令行签名击杀**所有**匹配的 ssh/plink 进程，且被 `start_target` / `stop_target` / `on_delete_target` / `on_stop_all` 调用；用户手动为同一目标起的隧道可能被误杀。修复需要重构隧道的所有权/生命周期并做人工回归，故留待单独改动（见 REVIEW.md 发现 #6）。
 - **隧道接入（§G4.2-2/4）**：没有 ADOPTED/OWNED 所有权模型，"已连接"由每拍健康探测得出，而非登记后的固定句柄。

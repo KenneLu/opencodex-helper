@@ -4,7 +4,7 @@
 
 Windows tray tool that forwards **port 10100 on multiple VMs** to **local opencodex (127.0.0.1:10100)**, so cc-switch inside any VM can use the opencodex on Windows without config changes. Supports multiple targets, key/password auth, token scanning, and one-click token generation.
 
-Unreleased (version tier pending owner sign-off, drafted as +0.0.1; full `build.bat` gate deferred until the owner releases the running instance):
+Unreleased (version tier pending owner sign-off, drafted as +0.0.1; full `build.bat` gate is green):
 
 - **Autostart (G4.1)**: the inline registry code was replaced by the family template module `modules/autostart`. Packaged builds point the Run key at the stable install location (`%LOCALAPPDATA%\opencodex-helper\app\opencodex-helper.exe`) when it exists, and fall back to the current exe otherwise. On every start `migrate_autostart()` repairs a Run key whose exe has disappeared — the live registry here points at `out\...\opencodex-helper-pkg-20260822-164631246\opencodex-helper-1.0.exe`, a folder that has been deleted. When no Run value exists, the call is a strict no-op: the tool never creates an autostart entry by itself.
 
@@ -79,7 +79,6 @@ Local build: `build.bat nopause` (compile gate → PyInstaller → frozen smoke)
 
 Documented per §I-10 (declare untriggered capabilities and their reasons):
 
-- **Full build gate not yet run for the autostart change**: `build.bat` refuses to build while an `opencodex-helper.exe` instance is live, and the frozen smoke needs the single-instance mutex, so the gate is deferred until the owner releases the running instance. Static gates are green (`py_compile`, `import main` with a redirected data dir, `sync_check`).
 - **Stable install location (§G4.1-1)**: `paths.INSTALL_EXE` (`%LOCALAPPDATA%\opencodex-helper\app\`) is defined and autostart already prefers it, but the updater still replaces the running package in place; nothing installs a build into the stable folder yet.
 - **Bounded cleanup (§G4.2-3) — known violation, not fixed this round**: `kill_target_procs()` (main.py ~238-256) still kills *every* ssh/plink process whose command line matches the target, and it is reached from `start_target` / `stop_target` / `on_delete_target` / `on_stop_all`. A tunnel the user started by hand for the same target can therefore be killed. Fixing it means restructuring tunnel ownership/lifecycle, which needs manual regression, so it is deliberately left for a separate change (see REVIEW.md finding #6).
 - **Tunnel adoption (§G4.2-2/4)**: there is no ADOPTED/OWNED ownership model; "running" is derived from a health probe each poll rather than from a registered handle.

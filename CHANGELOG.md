@@ -8,16 +8,15 @@ The tagging convention matches the versions in this file.
 Version tier pending owner confirmation (D16): drafted as +0.0.1 (1.2.1 -> 1.2.2);
 the number and this section name land only after sign-off (team-lead ruling).
 
-**Build gate pending**: `build.bat` refuses to run while the owner's
-`opencodex-helper.exe` instance is live (running-instance guard), and the
-frozen smoke needs the single-instance mutex, so the full gate could not be
-run in this pass - deferred until the owner releases the instance. Static
-gates are green: `py_compile`, `import main` with a redirected data dir, and
-`sync_check --roots opencodex-helper`; PyInstaller packaging was also run
-into a throwaway dist dir and `modules.autostart` appears in the Analysis
-TOC. App-start self-heal on the live registry is deferred (it needs the app
-to run); a controlled module-level call against the real dead link was made
-with the original registry value backed up and restored.
+**Build gate green**: the owner released the running instance, so
+`build.bat nopause norun` was re-run in full - sync_check + PyInstaller +
+frozen smoke (`SMOKE OK`), artifact
+`release\opencodex-helper-1.2.1\opencodex-helper.exe`. The previous release
+folder was kept aside as `release\opencodex-helper-1.2.1.bak-pre-autostart`
+(not deleted). App-start self-heal against the live registry is still not
+run (it would write the user's Run value); a controlled module-level call
+against the real dead link was made earlier with the original value backed
+up and restored.
 
 - Autostart (G4.1): the inline Run-key code was replaced by the family
   template module `modules/autostart` (T3, 1.1.1, byte-identical copy;
