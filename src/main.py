@@ -30,7 +30,7 @@ import psutil
 import pystray
 from PIL import Image, ImageDraw
 
-from modules import autostart, log_kit, paths, tray_kit, update_helper   # noqa: E402
+from modules import autostart, i18n, log_kit, paths, tray_kit, update_helper   # noqa: E402
 from modules.paths import CONFIG_PATH, LOG_DIR, UPDATE_DIR, USER_DATA_DIR   # noqa: E402
 
 APP_DIR = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
@@ -52,7 +52,7 @@ def _resource_path(name):
 PLINK_PATH = _resource_path("bin/plink.exe")
 
 APP_NAME = "opencodex 助手"
-VERSION = "1.2.2"
+VERSION = "1.2.1"
 
 DEFAULT_CONFIG = {
     "targets": [],
@@ -109,6 +109,8 @@ def load_config():
     return merged
 
 CFG = load_config()
+# T5：语言在配置读取之后、任何 t() 之前初始化（auto 跟随 Windows UI 语言）。
+i18n.init(i18n.load_language_from_config(CONFIG_PATH))
 
 def save_config():
     try:
@@ -266,7 +268,7 @@ def start_target(t):
     if probe_target(t):
         _state[key] = True
         _log(f"start target {t['name']}: already connected")
-        return False, f"{t['name']} 隧道已连接，未重复启动"
+        return False, i18n.t("tgt_connected_skip", t["name"])
     kill_target_procs(t)
     tok = _token_status.get(key)
     pw = _pw_cache.get(key)
@@ -275,7 +277,7 @@ def start_target(t):
         if not pw:
             _state[key] = False
             _log(f"start target {t['name']}: password required, cancelled")
-            return False, f"{t['name']}: 需要密码（或先生成 SSH 令牌）"
+            return False, i18n.t("tgt_need_password", t["name"])
         _pw_cache[key] = pw
     if tok is False or (pw and tok is not True):
         ensure_plink_hostkey(t, pw)
@@ -288,13 +290,13 @@ def start_target(t):
     except Exception as e:
         _state[key] = False
         _log(f"start target {t['name']} failed: {e}")
-        return False, f"{t['name']} 启动失败: {e}"
+        return False, i18n.t("tgt_start_failed", t["name"], e)
     _tunnel_procs[key] = proc
     time.sleep(2.5)
     ok = probe_target(t)
     _state[key] = ok
     _log(f"start target {t['name']}: ok={ok}")
-    return ok, f"{t['name']} 隧道已连接" if ok else f"{t['name']} 隧道未就绪"
+    return ok, i18n.t("tgt_connected", t["name"]) if ok else i18n.t("tgt_not_ready", t["name"])
 
 def stop_target(t):
     key = target_key(t)
@@ -302,13 +304,13 @@ def stop_target(t):
         kill_target_procs(t)
         _state[key] = False
         _log(f"stop target {t['name']}: not running")
-        return False, f"{t['name']} 隧道未运行，未重复停止"
+        return False, i18n.t("tgt_not_running_skip", t["name"])
     kill_target_procs(t)
     time.sleep(1)
     ok = probe_target(t)
     _state[key] = ok
     _log(f"stop target {t['name']}: stopped={not ok}")
-    return not ok, f"{t['name']} 隧道已停止" if not ok else f"{t['name']} 停止失败"
+    return not ok, i18n.t("tgt_stopped", t["name"]) if not ok else i18n.t("tgt_stop_failed", t["name"])
 
 # ---------------- Tk 对话框 ----------------
 def _tk_root(title):
@@ -319,10 +321,10 @@ def _tk_root(title):
 
 def ask_password(t):
     try:
-        root = _tk_root(f"opencodex 助手 - 密码")
+        root = _tk_root(i18n.t("dlg_password_title"))
         root.geometry("360x140")
-        ttk.Label(root, text=f"目标: {t['name']}  {conn_str(t)}").pack(padx=12, pady=(14, 4), anchor="w")
-        ttk.Label(root, text="SSH 密码（仅本次使用，不保存）:").pack(padx=12, pady=4, anchor="w")
+        ttk.Label(root, text=i18n.t("dlg_password_target", t["name"], conn_str(t))).pack(padx=12, pady=(14, 4), anchor="w")
+        ttk.Label(root, text=i18n.t("dlg_password_prompt")).pack(padx=12, pady=4, anchor="w")
         var = tk.StringVar()
         e = ttk.Entry(root, textvariable=var, show="*", width=40)
         e.pack(padx=12, pady=4)
@@ -334,8 +336,8 @@ def ask_password(t):
             root.destroy()
         frm = ttk.Frame(root)
         frm.pack(pady=10)
-        ttk.Button(frm, text="确定", command=on_ok).pack(side="left", padx=8)
-        ttk.Button(frm, text="取消", command=on_cancel).pack(side="left", padx=8)
+        ttk.Button(frm, text=i18n.t("dlg_ok"), command=on_ok).pack(side="left", padx=8)
+        ttk.Button(frm, text=i18n.t("dlg_cancel"), command=on_cancel).pack(side="left", padx=8)
         root.bind("<Return>", lambda _e: on_ok())
         e.focus_set()
         root.mainloop()
@@ -347,14 +349,14 @@ def ask_password(t):
 def dialog_edit_target(t=None):
     """t=None 表示添加；返回 dict 或 None（取消）"""
     is_edit = t is not None
-    root = _tk_root("编辑目标" if is_edit else "添加目标")
+    root = _tk_root(i18n.t("dlg_edit_target") if is_edit else i18n.t("dlg_add_target"))
     root.geometry("420x330")
     fields = [
-        ("名称", "name", "Ubuntu24.04"),
-        ("用户名", "user", "xzy_admin"),
-        ("主机 / IP", "host", "192.168.190.128"),
-        ("SSH 端口", "port", "22"),
-        ("远端端口", "remote_port", str(CFG.get("local_port", 10100))),
+        (i18n.t("field_name"), "name", "Ubuntu24.04"),
+        (i18n.t("field_user"), "user", "xzy_admin"),
+        (i18n.t("field_host"), "host", "192.168.190.128"),
+        (i18n.t("field_ssh_port"), "port", "22"),
+        (i18n.t("field_remote_port"), "remote_port", str(CFG.get("local_port", 10100))),
     ]
     init = {k: str(t.get(k, d)) if k not in ("name", "user", "host") else str(t.get(k, d))
             for k, d, _ in fields} if is_edit else {k: d for k, d, _ in fields}
@@ -367,22 +369,22 @@ def dialog_edit_target(t=None):
         ttk.Label(frm, text=label).grid(row=i, column=0, sticky="w", pady=3)
         vars_[key] = tk.StringVar(value=init.get(key, ""))
         ttk.Entry(frm, textvariable=vars_[key], width=34).grid(row=i, column=1, pady=3)
-    ttk.Label(frm, text="密钥文件（留空=默认 ~/.ssh）").grid(row=len(fields), column=0, sticky="w", pady=3)
+    ttk.Label(frm, text=i18n.t("dlg_key_label")).grid(row=len(fields), column=0, sticky="w", pady=3)
     vars_["key"] = tk.StringVar(value=str(t.get("key", "")) if is_edit else "")
     key_row = len(fields)
     ttk.Entry(frm, textvariable=vars_["key"], width=26).grid(row=key_row, column=1, sticky="w", pady=3)
     def browse_key():
-        p = filedialog.askopenfilename(title="选择私钥文件", initialdir=str(Path.home() / ".ssh"))
+        p = filedialog.askopenfilename(title=i18n.t("dlg_choose_key_title"), initialdir=str(Path.home() / ".ssh"))
         if p:
             vars_["key"].set(p)
-    ttk.Button(frm, text="浏览…", command=browse_key).grid(row=key_row, column=1, sticky="e", pady=3)
+    ttk.Button(frm, text=i18n.t("dlg_browse"), command=browse_key).grid(row=key_row, column=1, sticky="e", pady=3)
     # 本机已扫描到的密钥提示
     keys = scan_local_keys()
     if keys:
-        ttk.Label(frm, text="本机密钥: " + " / ".join(Path(k).name for k in keys),
+        ttk.Label(frm, text=i18n.t("dlg_local_keys", " / ".join(Path(k).name for k in keys)),
                   foreground="#666").grid(row=key_row + 1, column=0, columnspan=2, sticky="w", pady=2)
     vars_["enabled"] = tk.BooleanVar(value=t.get("enabled", True) if is_edit else True)
-    ttk.Checkbutton(frm, text="启用（参与隧道与状态）", variable=vars_["enabled"]).grid(
+    ttk.Checkbutton(frm, text=i18n.t("dlg_enable_target"), variable=vars_["enabled"]).grid(
         row=key_row + 2, column=0, columnspan=2, sticky="w", pady=4)
     result = {}
     def on_ok():
@@ -395,17 +397,17 @@ def dialog_edit_target(t=None):
             result["key"] = vars_["key"].get().strip()
             result["enabled"] = vars_["enabled"].get()
             if not result["host"]:
-                messagebox.showwarning("提示", "主机 / IP 不能为空", parent=root)
+                messagebox.showwarning(i18n.t("dlg_warn_title"), i18n.t("dlg_host_required"), parent=root)
                 return
             root.destroy()
         except Exception:
-            messagebox.showerror("错误", "端口必须是数字", parent=root)
+            messagebox.showerror(i18n.t("dlg_err_title"), i18n.t("dlg_port_number"), parent=root)
     def on_cancel():
         root.destroy()
     btns = ttk.Frame(root)
     btns.pack(pady=8)
-    ttk.Button(btns, text="确定", command=on_ok).pack(side="left", padx=8)
-    ttk.Button(btns, text="取消", command=on_cancel).pack(side="left", padx=8)
+    ttk.Button(btns, text=i18n.t("dlg_ok"), command=on_ok).pack(side="left", padx=8)
+    ttk.Button(btns, text=i18n.t("dlg_cancel"), command=on_cancel).pack(side="left", padx=8)
     root.mainloop()
     return result or None
 
@@ -433,8 +435,8 @@ def pick_target(title):
         root.destroy()
     btns = ttk.Frame(root)
     btns.pack(pady=8)
-    ttk.Button(btns, text="确定", command=on_ok).pack(side="left", padx=8)
-    ttk.Button(btns, text="取消", command=on_cancel).pack(side="left", padx=8)
+    ttk.Button(btns, text=i18n.t("dlg_ok"), command=on_ok).pack(side="left", padx=8)
+    ttk.Button(btns, text=i18n.t("dlg_cancel"), command=on_cancel).pack(side="left", padx=8)
     root.mainloop()
     return sel.get("t")
 
@@ -450,20 +452,15 @@ def scan_local_keys():
 # ---------------- 生成 / 部署令牌 ----------------
 def generate_token_for_target(t):
     key = target_key(t)
-    root = _tk_root("生成 SSH 令牌")
+    root = _tk_root(i18n.t("dlg_token_title"))
     ok = messagebox.askyesno(
-        "生成 SSH 令牌",
-        f"将为本机生成 ed25519 密钥并部署公钥到目标 {t['name']} ({conn_str(t)})。\n\n"
-        "说明：\n"
-        "  1. 私钥生成在 ~/.ssh/（无口令，请妥善保管）\n"
-        "  2. 公钥自动追加到目标的 ~/.ssh/authorized_keys\n"
-        "  3. 部署需要目标的 SSH 密码，仅本次使用、不保存\n\n"
-        "是否继续？",
+        i18n.t("dlg_token_title"),
+        i18n.t("dlg_token_confirm", t["name"], conn_str(t)),
         parent=root,
     )
     root.destroy()
     if not ok:
-        return False, "已取消"
+        return False, i18n.t("token_cancelled")
     key_path = Path.home() / ".ssh" / "id_ed25519"
     if key_path.exists():
         key_path = Path.home() / ".ssh" / "id_ed25519_opencodex_helper"
@@ -472,11 +469,11 @@ def generate_token_for_target(t):
                     "-C", "opencodex-helper"],
                    capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
-        return False, f"密钥生成失败: {r.stderr.strip()[:200]}"
+        return False, i18n.t("token_keygen_failed", r.stderr.strip()[:200])
     pub = key_path.with_suffix(".pub").read_text(encoding="utf-8").strip()
     pw = ask_password(t)
     if not pw:
-        return False, "已取消部署（密钥已生成，可稍后手动部署）"
+        return False, i18n.t("token_deploy_cancelled")
     _pw_cache[key] = pw
     ensure_plink_hostkey(t, pw)
     remote = ("mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && "
@@ -485,11 +482,11 @@ def generate_token_for_target(t):
     rd = run_hidden(plink_args(t, pw, remote), capture_output=True, text=True, timeout=25)
     if rd.returncode != 0:
         _log(f"deploy pubkey failed: {rd.stderr}")
-        return False, f"公钥部署失败: {rd.stderr.strip()[:200]}"
+        return False, i18n.t("token_deploy_failed", rd.stderr.strip()[:200])
     t["key"] = str(key_path)
     save_config()
     _token_status[key] = True
-    return True, f"令牌已生成并部署到 {t['name']}"
+    return True, i18n.t("token_done", t["name"])
 
 # ---------------- 菜单动作 ----------------
 def make_toggle_action(t):
@@ -522,14 +519,14 @@ def on_add_target(icon, item):
             _log(f"add target: {d['name']} {d['host']}")
             threading.Thread(target=lambda: scan_and_refresh(icon, [d]), daemon=True).start()
             try:
-                icon.notify(f"已添加目标 {d['name']}", APP_NAME)
+                icon.notify(i18n.t("notify_target_added", d["name"]), i18n.t("app_name"))
             except Exception:
                 pass
     threading.Thread(target=_run, daemon=True).start()
 
 def on_edit_target(icon, item):
     def _run():
-        t = pick_target("选择要编辑的目标")
+        t = pick_target(i18n.t("dlg_pick_edit"))
         if not t:
             return
         d = dialog_edit_target(t)
@@ -542,11 +539,11 @@ def on_edit_target(icon, item):
 
 def on_delete_target(icon, item):
     def _run():
-        t = pick_target("选择要删除的目标")
+        t = pick_target(i18n.t("dlg_pick_delete"))
         if not t:
             return
-        root = _tk_root("删除目标")
-        ok = messagebox.askyesno("删除目标", f"确定删除目标 {t['name']}（{t['host']}）？", parent=root)
+        root = _tk_root(i18n.t("dlg_delete_title"))
+        ok = messagebox.askyesno(i18n.t("dlg_delete_title"), i18n.t("dlg_delete_confirm", t["name"], t["host"]), parent=root)
         root.destroy()
         if not ok:
             return
@@ -562,13 +559,13 @@ def on_generate_token(icon, item):
         targets = CFG["targets"]
         # 优先无令牌且启用的目标
         cand = [t for t in targets if _token_status.get(target_key(t)) is False]
-        pick = cand[0] if len(cand) == 1 else pick_target("选择要生成令牌的目标")
+        pick = cand[0] if len(cand) == 1 else pick_target(i18n.t("dlg_pick_token"))
         if not pick:
             return
         ok, msg = generate_token_for_target(pick)
         _log(f"generate token {pick['name']}: ok={ok} msg={msg}")
         try:
-            icon.notify(msg, APP_NAME)
+            icon.notify(msg, i18n.t("app_name"))
         except Exception:
             pass
         refresh_icon(icon)
@@ -579,7 +576,7 @@ def on_rescan_tokens(icon, item):
         scan_all_tokens()
         refresh_icon(icon)
         try:
-            icon.notify("令牌扫描完成", APP_NAME)
+            icon.notify(i18n.t("notify_token_scan_done"), i18n.t("app_name"))
         except Exception:
             pass
     threading.Thread(target=_run, daemon=True).start()
@@ -611,6 +608,22 @@ def on_toggle_autostart(icon, item):
     _log(f"autostart -> {autostart.is_autostart_enabled()}")
     refresh_icon(icon)
 
+def on_toggle_language(icon, item):
+    """中英切换（T1）：改语言 → 持久化 → 显式重建菜单（D14）。"""
+    new_lang = "en" if i18n.current_lang() == "zh" else "zh"
+    i18n.init(new_lang)
+    i18n.save_language_to_config(CONFIG_PATH, new_lang)
+    _log(f"language switched: {new_lang}")
+    try:
+        icon.notify(i18n.t("notify_lang_switched"), i18n.t("app_name"))
+    except Exception:
+        pass
+    try:
+        icon.menu = build_menu()
+        icon.update_menu()
+    except Exception as exc:
+        _log(f"menu rebuild after language switch failed: {exc}")
+
 def on_open_dashboard(icon, item):
     _log(f"open dashboard: {CFG['dashboard_url']}")
     webbrowser.open(CFG["dashboard_url"])
@@ -629,7 +642,7 @@ def on_quit(icon, item):
             save_config()
 
         choice = tray_kit.confirm_quit_dialog(
-            APP_NAME, "同时关闭当前隧道（含外部手动启动的）",
+            i18n.t("app_name"), i18n.t("quit_checkbox"),
             bool(CFG.get("quit_stop_tunnels", False)),
             on_change=_persist_quit_stop)
     except Exception as exc:
@@ -639,7 +652,7 @@ def on_quit(icon, item):
             from tkinter import messagebox as _mb
             _root = _tk.Tk()
             _root.withdraw()
-            _go = bool(_mb.askyesno(APP_NAME, "确定退出 opencodex-helper？清理选项按配置（退出后可在配置中修改）。"))
+            _go = bool(_mb.askyesno(i18n.t("app_name"), i18n.t("quit_native_text")))
             _root.destroy()
             choice = {"go": _go, "stop_service": bool(CFG.get("quit_stop_tunnels", False))}
         except Exception as exc2:
@@ -668,9 +681,9 @@ def on_quit(icon, item):
         else:
             _log("quit: no owned tunnels; nothing to clean")
     icon.stop()
-    if update_helper.PENDING_CMD:
+    if update_helper.pending_cmd():
         # 本进程退出后由脚本接管：等待 → robocopy 铺新版 → 重启新 exe → 自删
-        os.system('start "" /min "%s"' % update_helper.PENDING_CMD)
+        os.system('start "" /min "%s"' % update_helper.pending_cmd())
 
 # ---------------- 托盘 / 菜单 ----------------
 def refresh_icon(icon):
@@ -683,9 +696,9 @@ def refresh_icon(icon):
         pass
 
 def notify_status_change(icon, name, ok):
-    msg = f"{name} 隧道已连接" if ok else f"{name} 隧道已断开"
+    msg = i18n.t("tunnel_connected", name) if ok else i18n.t("tunnel_disconnected", name)
     try:
-        icon.notify(msg, APP_NAME)
+        icon.notify(msg, i18n.t("app_name"))
     except Exception:
         pass
 
@@ -709,18 +722,18 @@ def save_config_set_probe(icon, item, seconds):
     save_config()
     try:
         icon.update_menu()
-        icon.notify(f"状态刷新间隔已设为 {seconds} 秒", APP_NAME)
+        icon.notify(i18n.t("notify_interval_set", seconds), i18n.t("app_name"))
     except Exception:
         pass
 
-PROBE_CHOICES = [(20, "20 秒"), (60, "1 分钟"), (300, "5 分钟"), (600, "10 分钟"),
-                 (1800, "30 分钟"), (3600, "1 小时")]
+PROBE_CHOICES = [(20, "probe_20s"), (60, "probe_1m"), (300, "probe_5m"), (600, "probe_10m"),
+                 (1800, "probe_30m"), (3600, "probe_1h")]
 
 def build_probe_menu():
     return pystray.Menu(*[
-        pystray.MenuItem(label, functools.partial(save_config_set_probe, seconds=sec),
+        pystray.MenuItem(i18n.t(key), functools.partial(save_config_set_probe, seconds=sec),
                          checked=lambda item, s=sec: CFG.get("probe_interval_sec", 600) == s)
-        for sec, label in PROBE_CHOICES
+        for sec, key in PROBE_CHOICES
     ])
 
 def build_targets_menu():
@@ -732,27 +745,27 @@ def build_targets_menu():
             checked=lambda item, tt=t: tt.get("enabled", True),
         ))
     items.append(pystray.Menu.SEPARATOR)
-    items.append(pystray.MenuItem("＋ 添加目标…", on_add_target))
-    items.append(pystray.MenuItem("✎ 编辑目标…", on_edit_target))
-    items.append(pystray.MenuItem("－ 删除目标…", on_delete_target))
-    items.append(pystray.MenuItem("🔑 生成 SSH 令牌…", on_generate_token))
-    items.append(pystray.MenuItem("↻ 重新扫描令牌", on_rescan_tokens))
+    items.append(pystray.MenuItem(i18n.t("menu_add_target"), on_add_target))
+    items.append(pystray.MenuItem(i18n.t("menu_edit_target"), on_edit_target))
+    items.append(pystray.MenuItem(i18n.t("menu_delete_target"), on_delete_target))
+    items.append(pystray.MenuItem(i18n.t("menu_gen_token"), on_generate_token))
+    items.append(pystray.MenuItem(i18n.t("menu_rescan_tokens"), on_rescan_tokens))
     return pystray.Menu(*items)
 
 def status_line():
     n = global_connected_count()
     e = enabled_count()
-    return f"隧道状态: 已连接 ({n}/{e})" if n else "隧道状态: 未连接"
+    return i18n.t("status_tunnels_connected", n, e) if n else i18n.t("status_tunnels_down")
 
 def check_update_menu(_icon=None, _item=None):
     def worker():
         result = update_helper.check_update(VERSION, force=True)
         if result.get("newer"):
-            notify_status_change(_icon, f"发现新版本 {result['latest']}（当前 {VERSION}），菜单「下载并更新」可用", True)
+            notify_status_change(_icon, i18n.t("notify_update_available", result["latest"], VERSION), True)
         elif result.get("error"):
-            notify_status_change(_icon, f"检查更新失败：{result['error']}", False)
+            notify_status_change(_icon, i18n.t("notify_update_check_failed", result["error"]), False)
         else:
-            notify_status_change(_icon, f"已是最新版本 {VERSION}", True)
+            notify_status_change(_icon, i18n.t("notify_update_latest", VERSION), True)
         try:
             _icon.update_menu()
         except Exception:
@@ -761,17 +774,17 @@ def check_update_menu(_icon=None, _item=None):
 
 
 def download_update_menu(_icon=None, _item=None):
-    latest = update_helper.UPDATE_READY
+    latest = update_helper.update_ready()
     if not latest or not getattr(sys, "frozen", False):
         return
 
     def worker():
         try:
             update_helper.download_and_prepare(latest, APP_DIR, UPDATE_DIR, log=_log)
-            _icon.notify("更新已就绪，退出托盘后将自动完成升级并重启", APP_NAME)
+            _icon.notify(i18n.t("notify_update_ready"), i18n.t("app_name"))
         except Exception as e:
             _log(f"update download failed: {e}")
-            _icon.notify(f"下载更新失败：{e}", APP_NAME)
+            _icon.notify(i18n.t("notify_update_download_failed", e), i18n.t("app_name"))
         try:
             _icon.update_menu()
         except Exception:
@@ -783,42 +796,43 @@ def build_menu():
     """house 标准八段式（执行文档 D14）：信息 → 更新 → 默认入口 → 服务控制 → 业务 → 打开 → 偏好 → 退出。"""
     return pystray.Menu(
         # ① 信息区（只读；此前 ocx 状态行错位在菜单中部，本次归位到顶上）
-        pystray.MenuItem(lambda item: f"{APP_NAME} v{VERSION}", None, enabled=False),
+        pystray.MenuItem(lambda item: f'{i18n.t("app_name")} v{VERSION}', None, enabled=False),
         pystray.MenuItem(lambda item: status_line(), None, enabled=False),
         pystray.MenuItem(lambda item: ocx_status_line(), None, enabled=False),
         pystray.MenuItem(lambda item: ocx_safety_line(), None, enabled=False),
         pystray.Menu.SEPARATOR,
         # ② 更新区
-        pystray.MenuItem("检查助手更新", check_update_menu),
-        pystray.MenuItem("下载并更新助手", download_update_menu,
-                         enabled=lambda item: update_helper.UPDATE_READY is not None and getattr(sys, "frozen", False)),
+        pystray.MenuItem(i18n.t("menu_check_update"), check_update_menu),
+        pystray.MenuItem(i18n.t("menu_update_now"), download_update_menu,
+                         enabled=lambda item: update_helper.update_ready() is not None and getattr(sys, "frozen", False)),
         pystray.Menu.SEPARATOR,
         # ③ 默认入口（双击托盘）
-        pystray.MenuItem("打开 opencodex 面板", on_open_dashboard, default=True),
+        pystray.MenuItem(i18n.t("menu_open_dashboard"), on_open_dashboard, default=True),
         pystray.Menu.SEPARATOR,
         # ④ 服务控制（隧道）
-        pystray.MenuItem("启动全部隧道", on_start_all),
-        pystray.MenuItem("停止全部隧道", on_stop_all),
+        pystray.MenuItem(i18n.t("menu_start_all"), on_start_all),
+        pystray.MenuItem(i18n.t("menu_stop_all"), on_stop_all),
         pystray.Menu.SEPARATOR,
         # ⑤ 业务区
-        pystray.MenuItem("穿透目标", build_targets_menu()),
+        pystray.MenuItem(i18n.t("menu_targets"), build_targets_menu()),
         pystray.Menu.SEPARATOR,
         # ⑥ 服务控制（opencodex 本体）
-        pystray.MenuItem("启动 opencodex 服务", on_ocx_start),
-        pystray.MenuItem("停止 opencodex 服务", on_ocx_stop),
-        pystray.MenuItem("重启 opencodex 服务", on_ocx_restart),
+        pystray.MenuItem(i18n.t("menu_ocx_start"), on_ocx_start),
+        pystray.MenuItem(i18n.t("menu_ocx_stop"), on_ocx_stop),
+        pystray.MenuItem(i18n.t("menu_ocx_restart"), on_ocx_restart),
         pystray.Menu.SEPARATOR,
         # ⑦ 打开区
-        pystray.MenuItem("打开 opencodex 目录", on_open_ocx_dir),
-        pystray.MenuItem("打开助手日志目录", on_open_log),
+        pystray.MenuItem(i18n.t("menu_open_ocx_dir"), on_open_ocx_dir),
+        pystray.MenuItem(i18n.t("menu_open_logs"), on_open_log),
         pystray.Menu.SEPARATOR,
         # ⑧ 偏好区
-        pystray.MenuItem("开机自启", on_toggle_autostart,
+        pystray.MenuItem(i18n.t("menu_autostart"), on_toggle_autostart,
                          checked=lambda item: autostart.is_autostart_enabled()),
-        pystray.MenuItem("状态刷新间隔", build_probe_menu()),
+        pystray.MenuItem(i18n.t("menu_refresh_interval"), build_probe_menu()),
+        pystray.MenuItem(i18n.t("menu_language"), on_toggle_language),
         pystray.Menu.SEPARATOR,
         # ⑨ 退出（恒最后）
-        pystray.MenuItem("退出", on_quit),
+        pystray.MenuItem(i18n.t("menu_quit"), on_quit),
     )
 
 def make_icon_image(connected):
@@ -918,18 +932,18 @@ def refresh_ocx_state(icon):
 
 def ocx_status_line():
     if _ocx_state.get("ok"):
-        return f"opencodex 服务: 在线 (端口 {_ocx_state.get('port') or '?'})"
-    return "opencodex 服务: 离线"
+        return i18n.t("ocx_status_online", _ocx_state.get("port") or "?")
+    return i18n.t("ocx_status_offline")
 
 def ocx_safety_line():
     s = _ocx_state.get("safety")
     if s == "at-risk":
-        return "重启安全: 有风险"
+        return i18n.t("safety_at_risk")
     if s == "protected":
-        return "重启安全: 已保护"
+        return i18n.t("safety_protected")
     if s:
-        return "重启安全: 原生路由"
-    return "重启安全: 不可用"
+        return i18n.t("safety_native")
+    return i18n.t("safety_unavailable")
 
 def ocx_start_service():
     _log("ocx action: start requested")
@@ -937,11 +951,11 @@ def ocx_start_service():
     h = ocx_health()
     _ocx_state.update(h)
     if r is not None and r.returncode == 0 and h["ok"]:
-        return True, f"opencodex 服务已启动（端口 {h['port']}）"
+        return True, i18n.t("ocx_started", h["port"])
     detail = ""
     if r is not None:
         detail = (r.stderr.strip() or r.stdout.strip())[-200:]
-    return False, f"opencodex 服务启动失败: {detail or '未知错误'}"
+    return False, i18n.t("ocx_start_failed", detail or i18n.t("err_unknown"))
 
 def ocx_stop_service():
     _log("ocx action: stop requested")
@@ -949,11 +963,11 @@ def ocx_stop_service():
     h = ocx_health()
     _ocx_state.update(h)
     if r is not None and r.returncode == 0 and not h["ok"]:
-        return True, "opencodex 服务已停止"
+        return True, i18n.t("ocx_stopped")
     detail = ""
     if r is not None:
         detail = (r.stderr.strip() or r.stdout.strip())[-200:]
-    return False, f"opencodex 服务停止失败: {detail or '未知错误'}"
+    return False, i18n.t("ocx_stop_failed", detail or i18n.t("err_unknown"))
 
 def ocx_restart_service():
     _log("ocx action: restart requested")
@@ -961,11 +975,11 @@ def ocx_restart_service():
     h = ocx_health()
     _ocx_state.update(h)
     if r is not None and r.returncode == 0 and h["ok"]:
-        return True, f"opencodex 服务已重启（端口 {h['port']}）"
+        return True, i18n.t("ocx_restarted", h["port"])
     detail = ""
     if r is not None:
         detail = (r.stderr.strip() or r.stdout.strip())[-200:]
-    return False, f"opencodex 服务重启失败: {detail or '未知错误'}"
+    return False, i18n.t("ocx_restart_failed", detail or i18n.t("err_unknown"))
 
 def on_ocx_start(icon, item):
     threading.Thread(target=lambda: do_action(icon, ocx_start_service), daemon=True).start()
@@ -983,7 +997,7 @@ def on_open_ocx_dir(icon, item):
         os.startfile(d)  # noqa
     else:
         try:
-            icon.notify(f"opencodex 目录不存在: {d}", APP_NAME)
+            icon.notify(i18n.t("notify_ocx_dir_missing", d), i18n.t("app_name"))
         except Exception:
             pass
 
@@ -991,7 +1005,7 @@ def do_action(icon, fn):
     ok, msg = fn()
     _log(f"action result: ok={ok} msg={msg}")
     try:
-        icon.notify(msg, APP_NAME)
+        icon.notify(msg, i18n.t("app_name"))
     except Exception:
         pass
     refresh_icon(icon)
@@ -1008,30 +1022,36 @@ def ocx_monitor_loop(icon):
 # 单实例：命名互斥体（T7 tray_kit；名字不含版本号，跨版本互拦）
 
 
+def smoke():
+    """冻结冒烟（D3-01 旁路）：**不抢互斥体、不写注册表、不启动托盘**。
+
+    必须在 main() 的 acquire_single_instance 之前调用——否则用户常驻实例在跑时
+    冒烟会拿不到互斥体，转而走重复启动提示（模态 MessageBox，会把构建挂死）。
+    """
+    print(f"version: {VERSION}")
+    print(f"app: {APP_NAME}")
+    print(f"config: {CONFIG_PATH}")
+    print(f"config exists: {CONFIG_PATH.exists()}")
+    print(f"targets: {len(CFG['targets'])}")
+    for t in CFG["targets"]:
+        print(f"  - {t['name']}  {conn_str(t)}  port={t.get('port',22)}  remote_port={t.get('remote_port')}  enabled={t.get('enabled',True)}")
+    print(f"plink: {PLINK_PATH} exists={PLINK_PATH.exists()}")
+    print(f"ssh-keygen: exists={Path(SSH_KEYGEN).exists()}")
+    print(f"autostart: {autostart.is_autostart_enabled()}")
+    print(f"ocx cmd: {ocx_cmd_path()} exists={Path(ocx_cmd_path()).exists()}")
+    print(f"opencodex home: {opencodex_home_dir()}")
+    h = ocx_health()
+    print(f"ocx health: ok={h['ok']} port={h['port']} safety={h['safety']}")
+    print("SMOKE OK")
+    return 0
+
+
 def main():
     if not tray_kit.acquire_single_instance("opencodex-helper", log=_log):
         _log("another instance is already running; exiting")
-        tray_kit.warn_duplicate_instance(APP_NAME,
-                                         hint="请看任务栏右下角通知区域里的图标，本次启动已取消，不会多开一个托盘。")
+        tray_kit.warn_duplicate_instance(i18n.t("app_name"), hint=i18n.t("dup_hint"))
         return 0
     _log(f"{APP_NAME} v{VERSION} starting (pid {os.getpid()})")
-    if "--smoke" in sys.argv:
-        print(f"version: {VERSION}")
-        print(f"app: {APP_NAME}")
-        print(f"config: {CONFIG_PATH}")
-        print(f"config exists: {CONFIG_PATH.exists()}")
-        print(f"targets: {len(CFG['targets'])}")
-        for t in CFG["targets"]:
-            print(f"  - {t['name']}  {conn_str(t)}  port={t.get('port',22)}  remote_port={t.get('remote_port')}  enabled={t.get('enabled',True)}")
-        print(f"plink: {PLINK_PATH} exists={PLINK_PATH.exists()}")
-        print(f"ssh-keygen: exists={Path(SSH_KEYGEN).exists()}")
-        print(f"autostart: {autostart.is_autostart_enabled()}")
-        print(f"ocx cmd: {ocx_cmd_path()} exists={Path(ocx_cmd_path()).exists()}")
-        print(f"opencodex home: {opencodex_home_dir()}")
-        h = ocx_health()
-        print(f"ocx health: ok={h['ok']} port={h['port']} safety={h['safety']}")
-        print("SMOKE OK")
-        return 0
 
     # G4.1 条款 3/5：启动自愈——存量 Run 键指向的 exe 已消失（换版本目录被删）时，
     # 静默重写到当前正确位置（优先稳定安装位 INSTALL_EXE，见 modules/autostart）。
@@ -1046,7 +1066,7 @@ def main():
         result = update_helper.check_update(VERSION, force=False)
         if result.get("newer"):
             try:
-                icon.notify(f"发现新版本 {result['latest']}（当前 {VERSION}），右键菜单可下载更新", APP_NAME)
+                icon.notify(i18n.t("notify_update_available_menu", result["latest"], VERSION), i18n.t("app_name"))
             except Exception:
                 pass
 
@@ -1054,11 +1074,59 @@ def main():
     _ocx_state.update(ocx_health())
     _log(f"ocx initial health: ok={_ocx_state['ok']} port={_ocx_state['port']} safety={_ocx_state['safety']}")
     icon = pystray.Icon("opencodex-helper", icon=make_icon_image(False),
-                        title=f"{APP_NAME} v{VERSION}", menu=build_menu())
+                        title=f'{i18n.t("app_name")} v{VERSION}', menu=build_menu())
     threading.Thread(target=monitor_loop, args=(icon,), daemon=True).start()
     threading.Thread(target=ocx_monitor_loop, args=(icon,), daemon=True).start()
     icon.run()
     return 0
 
+def lang_audit():
+    """T5/T1 自检（--lang-audit）：静态扫描本文件里未进 zh 词表的中文串。
+
+    只查字面量（docstring 除外），命中即列出行号；退出码非 0 = 有遗漏。
+    数据/标识符本就不该进词表，故只在 src/main.py 上跑。
+    """
+    import ast
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+    source_path = Path(__file__)
+    if not source_path.is_file():
+        print(f"lang-audit: source not available in frozen build ({source_path.name})")
+        print(f"lang-audit: loaded tables zh={len(i18n.TABLES['zh'])} en={len(i18n.TABLES['en'])}")
+        return 0
+    source = source_path.read_text(encoding="utf-8")
+    known = set(i18n.TABLES["zh"].values())
+    try:
+        tree = ast.parse(source)
+    except SyntaxError as exc:
+        print(f"FAIL lang-audit: {exc}")
+        return 1
+    docstrings = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            body = getattr(node, "body", None)
+            if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) \
+                    and isinstance(body[0].value.value, str):
+                docstrings.add(id(body[0].value))
+    missing = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
+            continue
+        if id(node) in docstrings:
+            continue
+        if any(0x4E00 <= ord(ch) <= 0x9FFF for ch in node.value) and node.value not in known:
+            missing.append((node.lineno, node.value))
+    for lineno, text in sorted(missing):
+        print(f"MISSING L{lineno}: {text}")
+    print(f"lang-audit: {len(missing)} untranslated Chinese literal(s); zh table={len(known)} values")
+    return 1 if missing else 0
+
+
 if __name__ == "__main__":
+    if "--lang-audit" in sys.argv:
+        sys.exit(lang_audit())
+    if "--smoke" in sys.argv:
+        sys.exit(smoke())
     sys.exit(main())

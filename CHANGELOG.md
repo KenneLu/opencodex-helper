@@ -3,10 +3,28 @@
 All notable changes to opencodex-helper are documented here.
 The tagging convention matches the versions in this file.
 
-## 1.2.2
+## Unreleased
 
-Patch release (owner ruling, D15: +0.0.1).
+Version number is intentionally NOT bumped: as of 2026-09-19 the owner ruled
+that dev work lands as local commits only and the version changes only when a
+release is cut (STANDARDS "发版节奏" clause 7). The 1.2.2 bump made earlier in
+this batch was rolled back to 1.2.1.
 
+- i18n / T1 (bilingual UI): adopted the template `modules/i18n` 2.1.1
+  (light form) - `locales/zh.json` (base) + `locales/en.json`, flat KV,
+  en falls back to zh. Every tray menu label, notification, dialog (add/edit/
+  remove target, password, token generation), status line and service/error
+  message goes through `i18n.t()`. A "Language / 语言" item sits in the
+  preferences section; switching re-inits the language, persists it to
+  `config.json` (`language`), and **rebuilds the menu explicitly** - the
+  current language is read via `i18n.current_lang()`, not `i18n.LANG`
+  (2.1.1 fixed the stale package re-export copy). Data - target names/hosts,
+  ports, the opencodex service name - is not translated.
+- Build gate: `py_compile` list includes `modules/i18n/i18n.py`; a new gate
+  asserts the zh/en tables both answer the core keys (D1-04); a new
+  `--lang-audit` gate statically scans `src/main.py` for Chinese literals
+  outside the zh table (AST-based, docstrings excluded) - currently
+  **0 untranslated**. PyInstaller bundles `locales` via `--add-data`.
 - Autostart (G4.1): the inline Run-key code was replaced by the family
   template module `modules/autostart` (T3, 1.1.1, byte-identical copy;
   build.bat's py_compile list covers it). Packaged builds now prefer the
