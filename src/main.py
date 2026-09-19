@@ -30,7 +30,7 @@ import psutil
 import pystray
 from PIL import Image, ImageDraw
 
-from modules import log_kit, paths, tray_kit, update_helper   # noqa: E402
+from modules import autostart, log_kit, paths, tray_kit, update_helper   # noqa: E402
 from modules.paths import CONFIG_PATH, LOG_DIR, UPDATE_DIR, USER_DATA_DIR   # noqa: E402
 
 APP_DIR = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
@@ -606,8 +606,9 @@ def on_stop_all(icon, item):
     threading.Thread(target=_run, daemon=True).start()
 
 def on_toggle_autostart(icon, item):
-    set_autostart(not autostart_enabled())
-    _log(f"autostart -> {autostart_enabled()}")
+    enabled = not autostart.is_autostart_enabled()
+    autostart.set_autostart(enabled)
+    _log(f"autostart -> {autostart.is_autostart_enabled()}")
     refresh_icon(icon)
 
 def on_open_dashboard(icon, item):
@@ -813,7 +814,7 @@ def build_menu():
         pystray.Menu.SEPARATOR,
         # ⑧ 偏好区
         pystray.MenuItem("开机自启", on_toggle_autostart,
-                         checked=lambda item: autostart_enabled()),
+                         checked=lambda item: autostart.is_autostart_enabled()),
         pystray.MenuItem("状态刷新间隔", build_probe_menu()),
         pystray.Menu.SEPARATOR,
         # ⑨ 退出（恒最后）
@@ -830,20 +831,8 @@ def make_icon_image(connected):
     return img
 
 # ---------------- 开机自启 / ocx ----------------
-RUN_KEY = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run"
-RUN_NAME = "opencodex-helper"
-
-def autostart_enabled():
-    r = run_hidden(["reg", "query", RUN_KEY, "/v", RUN_NAME], capture_output=True, text=True)
-    return r.returncode == 0
-
-def set_autostart(on):
-    exe = sys.executable if getattr(sys, "frozen", False) else str(Path(__file__).resolve())
-    if on:
-        run_hidden(["reg", "add", RUN_KEY, "/v", RUN_NAME, "/t", "REG_SZ", "/d", f'"{exe}"', "/f"],
-                   capture_output=True)
-    else:
-        run_hidden(["reg", "delete", RUN_KEY, "/v", RUN_NAME, "/f"], capture_output=True)
+# 自启三件套（含稳定位指向与启动自愈）全部来自 T3 模板件 modules/autostart。
+# 注册表键名 = appconfig.APP_NAME（"opencodex-helper"，与历史键一致，换名=断链）。
 
 def opencodex_home_dir():
     override = str(CFG.get("opencodex_home", "") or "").strip()
@@ -1036,13 +1025,18 @@ def main():
             print(f"  - {t['name']}  {conn_str(t)}  port={t.get('port',22)}  remote_port={t.get('remote_port')}  enabled={t.get('enabled',True)}")
         print(f"plink: {PLINK_PATH} exists={PLINK_PATH.exists()}")
         print(f"ssh-keygen: exists={Path(SSH_KEYGEN).exists()}")
-        print(f"autostart: {autostart_enabled()}")
+        print(f"autostart: {autostart.is_autostart_enabled()}")
         print(f"ocx cmd: {ocx_cmd_path()} exists={Path(ocx_cmd_path()).exists()}")
         print(f"opencodex home: {opencodex_home_dir()}")
         h = ocx_health()
         print(f"ocx health: ok={h['ok']} port={h['port']} safety={h['safety']}")
         print("SMOKE OK")
         return 0
+
+    # G4.1 条款 3/5：启动自愈——存量 Run 键指向的 exe 已消失（换版本目录被删）时，
+    # 静默重写到当前正确位置（优先稳定安装位 INSTALL_EXE，见 modules/autostart）。
+    # 放在 --smoke 早退之后：冒烟是只读检查，不得改写用户真实注册表（D3-03）。
+    autostart.migrate_autostart(log=_log)
 
     threading.Thread(target=scan_all_tokens, daemon=True).start()
     threading.Thread(target=initial_probe_all, daemon=True).start()

@@ -5,16 +5,42 @@ The tagging convention matches the versions in this file.
 
 ## Unreleased
 
-- Bilingual README (baseline 8): `README.md` is now the English canonical
-  version with `README.zh-CN.md` as the Chinese one, language switch lines on
-  top of both; stale 1.0-era packaging notes refreshed. Both files now ship
-  inside the release zip.
+Version tier pending owner confirmation (D16): drafted as +0.0.1 (1.2.1 -> 1.2.2);
+the number and this section name land only after sign-off (team-lead ruling).
+
+**Build gate pending**: `build.bat` refuses to run while the owner's
+`opencodex-helper.exe` instance is live (running-instance guard), and the
+frozen smoke needs the single-instance mutex, so the full gate could not be
+run in this pass - deferred until the owner releases the instance. Static
+gates are green: `py_compile`, `import main` with a redirected data dir, and
+`sync_check --roots opencodex-helper`; PyInstaller packaging was also run
+into a throwaway dist dir and `modules.autostart` appears in the Analysis
+TOC. App-start self-heal on the live registry is deferred (it needs the app
+to run); a controlled module-level call against the real dead link was made
+with the original registry value backed up and restored.
+
+- Autostart (G4.1): the inline Run-key code was replaced by the family
+  template module `modules/autostart` (T3, 1.1.1, byte-identical copy;
+  build.bat's py_compile list now covers it). Packaged builds now prefer the
+  stable install location (`%LOCALAPPDATA%\opencodex-helper\app\
+  opencodex-helper.exe`) when it exists instead of always pinning the running
+  package folder.
+- Autostart self-heal (G4.1-3/5): `migrate_autostart()` runs at startup and
+  silently rewrites a Run value whose exe no longer exists. The live machine
+  has exactly this: the key points at the deleted
+  `out\...\opencodex-helper-pkg-20260822-164631246\opencodex-helper-1.0.exe`.
+  The smoke path returns before the migration, so `--smoke` stays read-only
+  and never touches the real registry (D3-03).
 
 ## 1.2.1
 
 - Internal structure only: family template modules moved under `modules/`
   (imports via `from modules import ...`); sync_check and CI compile lists
   updated. No behavior change.
+- Bilingual README (baseline 8): `README.md` is now the English canonical
+  version with `README.zh-CN.md` as the Chinese one, language switch lines on
+  top of both; stale 1.0-era packaging notes refreshed. Both files now ship
+  inside the release zip.
 
 ## 1.2.0
 
