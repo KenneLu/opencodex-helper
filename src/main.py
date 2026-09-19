@@ -11,6 +11,7 @@ import functools
 import json
 import logging
 import os
+import queue
 import shlex
 import shutil
 import subprocess
@@ -523,7 +524,7 @@ def target_line(t):
 
 def on_add_target(icon, item):
     def _run():
-        d = dialog_edit_target()
+        d = ui_post(dialog_edit_target)   # 对话框含 tk.Tk() → 封送到 Tk 线程
         if d:
             CFG["targets"].append(d)
             save_config()
@@ -537,10 +538,10 @@ def on_add_target(icon, item):
 
 def on_edit_target(icon, item):
     def _run():
-        t = pick_target(i18n.t("dlg_pick_edit"))
+        t = ui_post(lambda: pick_target(i18n.t("dlg_pick_edit")))
         if not t:
             return
-        d = dialog_edit_target(t)
+        d = ui_post(lambda: dialog_edit_target(t))
         if d:
             t.update(d)
             save_config()
@@ -550,13 +551,17 @@ def on_edit_target(icon, item):
 
 def on_delete_target(icon, item):
     def _run():
-        t = pick_target(i18n.t("dlg_pick_delete"))
+        def _ask():
+            t = pick_target(i18n.t("dlg_pick_delete"))
+            if not t:
+                return None
+            root = _tk_root(i18n.t("dlg_delete_title"))
+            ok = messagebox.askyesno(i18n.t("dlg_delete_title"), i18n.t("dlg_delete_confirm", t["name"], t["host"]), parent=root)
+            root.destroy()
+            return t if ok else None
+
+        t = ui_post(_ask)    # 选目标 + 确认框都在 Tk 线程上跑（E1-03/I-03）
         if not t:
-            return
-        root = _tk_root(i18n.t("dlg_delete_title"))
-        ok = messagebox.askyesno(i18n.t("dlg_delete_title"), i18n.t("dlg_delete_confirm", t["name"], t["host"]), parent=root)
-        root.destroy()
-        if not ok:
             return
         kill_target_procs(t)
         CFG["targets"] = [x for x in CFG["targets"] if x is not t]
@@ -570,10 +575,11 @@ def on_generate_token(icon, item):
         targets = CFG["targets"]
         # 优先无令牌且启用的目标
         cand = [t for t in targets if _token_status.get(target_key(t)) is False]
-        pick = cand[0] if len(cand) == 1 else pick_target(i18n.t("dlg_pick_token"))
+        pick = ui_post(lambda: cand[0] if len(cand) == 1
+                       else pick_target(i18n.t("dlg_pick_token")))
         if not pick:
             return
-        ok, msg = generate_token_for_target(pick)
+        ok, msg = ui_post(lambda: generate_token_for_target(pick))
         _log(f"generate token {pick['name']}: ok={ok} msg={msg}")
         try:
             icon.notify(msg, i18n.t("app_name"))
@@ -652,23 +658,33 @@ def on_quit(icon, item):
             CFG["quit_stop_tunnels"] = bool(value)
             save_config()
 
-        choice = tray_kit.confirm_quit_dialog(
-            i18n.t("app_name"), i18n.t("quit_checkbox"),
-            bool(CFG.get("quit_stop_tunnels", False)),
-            on_change=_persist_quit_stop)
+        # 确认框要建 Tk 根 → 封送到唯一的 Tk 线程（E1-03/I-03）。
+        # 降级链两级都在里面跑：富对话框失败就走原生 askyesno（同样在那一个线程上）。
+        def _confirm():
+            try:
+                return tray_kit.confirm_quit_dialog(
+                    i18n.t("app_name"), i18n.t("quit_checkbox"),
+                    bool(CFG.get("quit_stop_tunnels", False)),
+                    on_change=_persist_quit_stop)
+            except Exception as exc:
+                _log(f"quit dialog failed ({type(exc).__name__}: {exc}); "
+                     f"falling back to native confirm")
+            try:
+                import tkinter as _tk
+                from tkinter import messagebox as _mb
+                _root = _tk.Tk()
+                _root.withdraw()
+                _go = bool(_mb.askyesno(i18n.t("app_name"), i18n.t("quit_native_text")))
+                _root.destroy()
+                return {"go": _go, "stop_service": bool(CFG.get("quit_stop_tunnels", False))}
+            except Exception as exc2:
+                _log(f"native confirm failed ({type(exc2).__name__}: {exc2}); "
+                     f"proceeding without confirmation (external tunnels untouched by default)")
+                return None
+
+        choice = ui_post(_confirm)
     except Exception as exc:
-        _log(f"quit dialog failed ({type(exc).__name__}: {exc}); falling back to native confirm")
-        try:
-            import tkinter as _tk
-            from tkinter import messagebox as _mb
-            _root = _tk.Tk()
-            _root.withdraw()
-            _go = bool(_mb.askyesno(i18n.t("app_name"), i18n.t("quit_native_text")))
-            _root.destroy()
-            choice = {"go": _go, "stop_service": bool(CFG.get("quit_stop_tunnels", False))}
-        except Exception as exc2:
-            _log(f"native confirm failed ({type(exc2).__name__}: {exc2}); "
-                 f"proceeding without confirmation (external tunnels untouched by default)")
+        _log(f"quit confirm could not be marshalled ({type(exc).__name__}: {exc})")
     if not choice or not choice.get("go"):
         _log("quit cancelled by user")
         return
@@ -811,6 +827,56 @@ def menu_refresh_loop():
             MENU_SIG.flush_deferred()
         except Exception as exc:
             _log(f"menu refresh failed: {exc}")
+
+
+# ---- E1-03 / I-03：UI 队列封送 -------------------------------------------------
+# tkinter 不是线程安全的，而本工具的对话框是在 threading.Thread 里弹的（为了不让托盘
+# 在等用户操作时失去响应）。此前那等于**在工作线程里建/毁一个 Tk 解释器**——换一个
+# CPython/_tkinter 构建就可能崩，任何跨线程共享都会踩解释器状态。
+# 改成：**所有 Tk 工作都投给同一个常驻线程**，工作线程投完等结果回来。
+# 跨线程传递的只有「队列里的一个可调用对象」，Tk 对象从不离开它自己的线程。
+ui_q = queue.Queue()
+_UI_THREAD_NAME = "ocx-ui"
+_ui_start_lock = threading.Lock()
+_ui_thread = None
+
+
+def ui_thread_loop():
+    """唯一的 Tk 线程：顺序执行投进来的 UI 工作（daemon，进程退出即结束）。"""
+    while True:
+        ui_q.get()()
+
+
+def ui_post(fn):
+    """把 UI 工作封送到唯一的 Tk 线程执行，阻塞取回结果（E1-03/I-03）。
+
+    线程**按需启动**：不经过 main() 的路径（测试、诊断）若只 put 不执行会永久卡在
+    done.wait()。已在 Tk 线程上时直接跑，避免自己投的活自己等。
+    """
+    global _ui_thread
+    if threading.current_thread().name == _UI_THREAD_NAME:
+        return fn()
+    with _ui_start_lock:
+        if _ui_thread is None or not _ui_thread.is_alive():
+            _ui_thread = threading.Thread(target=ui_thread_loop, name=_UI_THREAD_NAME,
+                                          daemon=True)
+            _ui_thread.start()
+
+    box, done = {}, threading.Event()
+
+    def _job():
+        try:
+            box["result"] = fn()
+        except BaseException as exc:    # 异常要原样回到调用方，不能吞成静默
+            box["exc"] = exc
+        finally:
+            done.set()
+
+    ui_q.put(_job)
+    done.wait()
+    if "exc" in box:
+        raise box["exc"]
+    return box.get("result")
 
 
 def notify_status_change(icon, name, ok):
