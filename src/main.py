@@ -220,7 +220,7 @@ def probe_target(t):
             if r.returncode == 0 and '"service":"opencodex"' in r.stdout:
                 return True
         except Exception as exc:
-            _log(f"probe {t['name']}: ssh probe errored ({exc}) -> 放行（不据此判定不健康，#45）")
+            _log(f"probe {t['name']}: ssh probe errored ({exc}) -> fail-open (not judged unhealthy, #45)")
             return True
     pw = _pw_cache.get(key)
     if pw and PLINK_PATH.exists():
@@ -230,7 +230,7 @@ def probe_target(t):
             if r.returncode == 0 and '"service":"opencodex"' in r.stdout:
                 return True
         except Exception as exc:
-            _log(f"probe {t['name']}: plink probe errored ({exc}) -> 放行（不据此判定不健康，#45）")
+            _log(f"probe {t['name']}: plink probe errored ({exc}) -> fail-open (not judged unhealthy, #45)")
             return True
     return False
 
