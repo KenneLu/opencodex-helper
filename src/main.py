@@ -27,7 +27,6 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
-import psutil
 import pystray
 from PIL import Image, ImageDraw
 
@@ -265,24 +264,27 @@ def initial_probe_all():
 
 # ---------------- 隧道启停 ----------------
 def kill_target_procs(t):
+    """停止本 helper **自己启动**的该目标隧道（G4.2 条款 3：有界清理）。
+
+    **只认 OWNED 句柄**（`_tunnel_procs`）——**不做命令行签名扫场**。
+    G4.2 条款 3 明令「禁止全量签名击杀」：按 `cmdline` 特征（目标端口对 + conn_str）
+    扫全场，会把**用户手动另起的同形隧道**一起杀掉，而那是条款 1 明文保护的业务自由
+    （"helper 不阻止、不清理、不告警刷屏"）。**签名匹配无法区分"我们起的"与"别人起的"**
+    —— 两者 cmdline 完全同形，没有可靠的自有判据：本进程只持有自己 Popen 的句柄；
+    上一会话遗留的、用户手起的都只能算 ADOPTED（条款 4：放行是合法状态）。
+    ⇒ 不为无法证明的所有权去拆用户的东西。
+
+    ADOPTED 实例的显式停止属 service_link（B6）的优雅 API 路径；未接入前，"停止菜单"
+    对外部实例**如实报停不下来**（probe 仍为真 ⇒ `stop_target` 返回失败），不假装成功。
+    """
     key = target_key(t)
     proc = _tunnel_procs.pop(key, None)
     if proc:
         try:
             proc.terminate()
-        except Exception:
-            pass
-    target = f"{t.get('remote_port',10100)}:127.0.0.1:{CFG['local_port']}"
-    cs = conn_str(t)
-    for p in psutil.process_iter(["pid", "name", "cmdline"]):
-        try:
-            cmd = p.info.get("cmdline") or []
-            joined = " ".join(cmd)
-            name = (p.info.get("name") or "").lower()
-            if target in joined and cs in joined and (name.startswith("ssh") or "plink" in name):
-                p.terminate()
-        except Exception:
-            pass
+            _log(f"stop target {t['name']}: terminated owned tunnel (pid={proc.pid})")
+        except Exception as exc:
+            _log(f"stop target {t['name']}: owned tunnel terminate failed ({exc})")
 
 def ensure_plink_hostkey(t, pw):
     if not PLINK_PATH.exists():
@@ -727,7 +729,9 @@ def on_quit(icon, item):
     if not _proceed:
         return
     if stop_tunnels:
-        # 勾选才扩展到签名匹配（含外部手动启动的隧道）——用户主动要求的全停
+        # 用户勾选「顺便关闭隧道」⇒ 对各目标走有界清理。**作用域 = 接入实例（G4.2 条款 5）**：
+        # `kill_target_procs` 只终止 OWNED 句柄，**不再做命令行签名扫场**（条款 3 禁全量击杀）
+        # ⇒ 用户手动另起的同形隧道**不被碰**（条款 1 业务自由）。
         for t in CFG["targets"]:
             kill_target_procs(t)
     else:
