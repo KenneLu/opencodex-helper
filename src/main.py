@@ -735,19 +735,16 @@ def on_quit(icon, item):
         for t in CFG["targets"]:
             kill_target_procs(t)
     else:
-        # 有界清理（G4.2 条款 3）：只停自己启动的（OWNED，进程句柄 terminate）；
-        # 外部手动启动的隧道放行（条款 4：放行是合法状态，下次启动自动重新接入）
-        owned = list(_tunnel_procs.items())
-        for _key, proc in owned:
-            try:
-                proc.terminate()
-            except Exception:
-                pass
-            _tunnel_procs.pop(_key, None)
-        if owned:
-            _log(f"quit: stopped {len(owned)} owned tunnel(s); external ones untouched")
-        else:
-            _log("quit: no owned tunnels; nothing to clean")
+        # G4.2 **条款 5**：不勾选 = 服务与隧道**越过托盘生命周期继续运行**（明文）。
+        # ⚠ 旧实现（至 1.2.1）在这里 terminate 了**所有 OWNED 句柄** ⇒ 用户报告
+        #   （2026-09-20）："没选关闭隧道，结果也关了"。
+        # 根因是**把条款 3 的"作用域规则"当成了"触发条件"**：
+        #   · 条款 5 管「**要不要**清理」——由本勾选框决定（默认不勾 ⇒ 不清）；
+        #   · 条款 3 管「**清理谁**」——作用域 = 接入实例、禁全量签名击杀（不勾时根本用不上）。
+        # 两者分工，不可互推。OWNED 隧道同样是"服务越过托盘继续运行"的一种（条款 4：
+        # 放行是合法状态，不是泄漏），下次启动由探测自动重新接入。
+        _log("quit: tunnels keep running (checkbox not ticked, G4.2-5); "
+             "owned handles released with this process")
     icon.stop()
     if PENDING_UPDATE_CMD:
         # 本进程退出后由脚本接管：等待 → robocopy 铺新版 → 重启新 exe → 自删。
