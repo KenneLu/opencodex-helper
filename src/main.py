@@ -1295,7 +1295,12 @@ def main():
             message="\n\n".join([i18n.t("dup_running"),
                                   i18n.t("dup_hint")]))
         return 0
-    _log(f"{APP_NAME} v{VERSION} starting (pid {os.getpid()})")
+    # C-38：锚是「第一个字符串实参以 `startup` 开头的 log 行」—— 原来这里是 `starting`，
+    # 所以判据报「锚 0 处」（**缺启动标记本身就是缺口**：第一次/第二次启动都无法归属）。
+    # 统一用 §4.1.38 的正本措辞，并紧跟两行解析后的数据根与配置路径。
+    _log(f"startup {APP_NAME} v{VERSION} (pid {os.getpid()})")
+    _log("data root: %s" % USER_DATA_DIR)
+    _log("config   : %s" % CONFIG_PATH)
     # T2/C-2（paths 1.1.4，MUST-WIRE）：让"本实例的 exe 不可被删除/改名"由**内核**保证，
     # 而不是由纪律保证。持有的是一个**不含 FILE_SHARE_DELETE** 的句柄 ⇒ 删除方（构建脚本 /
     # 手工 `rm -r` / 未来的 --clean）会**大声失败**，而不是把正在运行的实例目录静默掏空

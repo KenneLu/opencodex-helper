@@ -150,7 +150,7 @@ rc = M.main()
 text = LOG_PATH.read_text(encoding="utf-8", errors="replace") if LOG_PATH.exists() else ""
 check("main() returned 0 (guard passed)", rc == 0, "rc=%r" % (rc,))
 check("startup sequence reached (log has startup)",
-      any("starting" in line for line in text.splitlines()), repr(text.splitlines()[:2]))
+      any("startup" in line for line in text.splitlines()), repr(text.splitlines()[:2]))
 check("migrate_autostart called on startup", CALLS["autostart"] == 1, repr(CALLS))
 check("initial token scan and probe started",
       CALLS["scans"] == 1 and CALLS["probes"] == 1, repr(CALLS))
