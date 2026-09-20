@@ -3,7 +3,11 @@
 All notable changes to opencodex-helper are documented here.
 The tagging convention matches the versions in this file.
 
-## Unreleased
+## 1.2.2
+- **Quit no longer stops tunnels when the checkbox is unticked** (2026-09-20, user report; C-50). `on_quit` split the cleanup into `if stop_tunnels: kill...` / else: terminate every OWNED handle - so an unticked box still tore down the tunnels this tool had started. The root cause was reading G4.2 clause 3 (the scope rule: only attached instances, never a blanket signature sweep) as the trigger condition; clause 5 is what decides whether to clean at all, and it says: unticked = service and tunnels outlive the tray. dsh/reme never had this bug because they fold both into a single if <checkbox>: with a log-only else. Guard: template criterion C-50.
+- **probe_target fails open** (2026-09-20, #45). Its return value decides kill_target_procs, so "the probe itself broke" (missing ssh, timeout) must not be folded into "definitely unhealthy" - that is "I am broken, so I tear down the user's tunnel", the opposite of the family rule that a guard must fail open. Now: a non-zero exit from a probe that did run still means unhealthy; an exception (the probe never ran) logs and returns True. Guard: template criterion C-49.
+- **Startup self-identification** (C-38): the startup line is followed by the resolved data root and config path, and the log-wrapper name was aligned (`_log` is now recognised by the criterion anchor).
+- **VERSION 1.2.1 -> 1.2.2.**
 - **English mode: the quit dialog and the duplicate-launch popup still showed Chinese** (2026-09-19
   defect, found by extending the R-07 scan surface to the call sites). `tray_kit.confirm_quit_dialog`
   and `warn_duplicate_instance` are **pure-mechanism** helpers - their docstring (2.0.2 / E4-02)
