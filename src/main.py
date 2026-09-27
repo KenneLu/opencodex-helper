@@ -30,9 +30,9 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 import pystray
 from PIL import Image, ImageDraw
 
-from modules import autostart, i18n, log_kit, paths, tray_kit, update_helper   # noqa: E402
-from modules.appconfig import APP_ID   # noqa: E402
-from modules.paths import APP_DIR, CONFIG_PATH, LOG_DIR, UPDATE_DIR, USER_DATA_DIR   # noqa: E402
+from template import autostart, i18n, log_kit, paths, tray_kit, update_helper   # noqa: E402
+from template.appconfig import APP_ID   # noqa: E402
+from template.paths import APP_DIR, CONFIG_PATH, LOG_DIR, UPDATE_DIR, USER_DATA_DIR   # noqa: E402
 
 # 程序本体目录**不在本文件派生**：唯一出处是 T2 paths 的 APP_DIR（打包后 = exe 所在
 # 目录，开发态 = 仓库根）。这里曾另有一份同名派生量（开发态 = src/），与 paths 分叉，
@@ -79,7 +79,7 @@ _logger = log_kit.get_logger(LOG_DIR)   # T12：滚动 1MB×3（house 标准 D13
 def _log(*parts):
     """模板件的日志契约是 **print 形态**（`log("下载中", name)`），与 log_kit 的单参闭包不同。
 
-    `modules/update_helper` 里有 6 处多参调用；传单参的 log 进去，它们会在**真路径**上
+    `template/update_helper` 里有 6 处多参调用；传单参的 log 进去，它们会在**真路径**上
     TypeError —— 而命中的正是"每次下载"(L407)、"每次成功拉起替换脚本"(L257)、
     "存在失败 marker 时"(L390) 这类必然会走到的行。opencodex 的更新链因此从来没跑通过。
     这里按契约收任意个参数再拼接（模板 log_kit 待 tpl-keeper 统一为同一形态）。
@@ -1080,7 +1080,7 @@ def make_icon_image(connected):
     return img
 
 # ---------------- 开机自启 / ocx ----------------
-# 自启三件套（含稳定位指向与启动自愈）全部来自 T3 模板件 modules/autostart。
+# 自启三件套（含稳定位指向与启动自愈）全部来自 T3 模板件 template/autostart。
 # 注册表键名 = appconfig.APP_NAME（"opencodex-helper"，与历史键一致，换名=断链）。
 
 def opencodex_home_dir():
@@ -1311,7 +1311,7 @@ def main():
     paths.hold_exe_delete_guard(log=_log)
 
     # G4.1 条款 3/5：启动自愈——存量 Run 键指向的 exe 已消失（换版本目录被删）时，
-    # 静默重写到当前正确位置（优先稳定安装位 INSTALL_EXE，见 modules/autostart）。
+    # 静默重写到当前正确位置（优先稳定安装位 INSTALL_EXE，见 template/autostart）。
     # 放在 --smoke 早退之后：冒烟是只读检查，不得改写用户真实注册表（D3-03）。
     autostart.migrate_autostart(log=_log)
     # T4 收尾：更新脚本在托盘退出后才跑，要是被打断（重启/被杀/半路消失），那份解压好的

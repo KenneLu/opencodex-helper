@@ -6,8 +6,8 @@ Windows 托盘工具：把**多台 VM 的 127.0.0.1:10100** 转发到**本机 op
 
 未发版（开发期只做本地 commit，版本号只在发版时改）：
 
-- **中英双语界面（T1）**：托盘菜单、通知、对话框（增删改目标、密码输入、生成令牌）、状态行与服务/错误信息全部走家族模板件 `modules/i18n`，`locales/zh.json` 为基准表、`locales/en.json` 缺失键回退中文。偏好区新增 **「语言 / Language」** 项，一键切换并写入 `config.json` 的 `language`（默认 `auto`＝跟随 Windows UI 语言），切换后**立即重建菜单**。目标名/主机、端口、opencodex 服务名等数据不翻译。
-- **开机自启（G4.1）**：内联注册表代码改为家族模板件 `modules/autostart`。打包态优先指向稳定安装位（`%LOCALAPPDATA%\opencodex-helper\app\opencodex-helper.exe`，存在时），否则退回当前 exe；每次启动执行 `migrate_autostart()`，把指向"已消失的 exe"的 Run 键静默修回——**本机已实测**：原键指向已被删除的 `out\...\opencodex-helper-pkg-20260822-164631246\opencodex-helper-1.0.exe`，修复版首次启动后即被改写为存在的 release 路径。若注册表里根本没有这个值，则不会写任何东西——工具绝不自行新增自启项。
+- **中英双语界面（T1）**：托盘菜单、通知、对话框（增删改目标、密码输入、生成令牌）、状态行与服务/错误信息全部走家族模板件 `template/i18n`，`locales/zh.json` 为基准表、`locales/en.json` 缺失键回退中文。偏好区新增 **「语言 / Language」** 项，一键切换并写入 `config.json` 的 `language`（默认 `auto`＝跟随 Windows UI 语言），切换后**立即重建菜单**。目标名/主机、端口、opencodex 服务名等数据不翻译。
+- **开机自启（G4.1）**：内联注册表代码改为家族模板件 `template/autostart`。打包态优先指向稳定安装位（`%LOCALAPPDATA%\opencodex-helper\app\opencodex-helper.exe`，存在时），否则退回当前 exe；每次启动执行 `migrate_autostart()`，把指向"已消失的 exe"的 Run 键静默修回——**本机已实测**：原键指向已被删除的 `out\...\opencodex-helper-pkg-20260822-164631246\opencodex-helper-1.0.exe`，修复版首次启动后即被改写为存在的 release 路径。若注册表里根本没有这个值，则不会写任何东西——工具绝不自行新增自启项。
 
 1.1.0 起的补充能力：**在线更新**（菜单「检查助手更新 / 下载并更新助手」，启动时自动检查，zip + sha256 校验，退出托盘后自动完成替换并重启）；**数据区**迁至 `%LOCALAPPDATA%\opencodex-helper\`（旧 exe 旁配置自动迁移，日志 1MB×3 滚动）；**单实例**守护（重复启动弹提示并退出）。
 
@@ -74,7 +74,7 @@ Windows 托盘工具：把**多台 VM 的 127.0.0.1:10100** 转发到**本机 op
 
 ## 打包 / 更新
 
-源码结构：`src/main.py`、`src/modules/`（家族模板件：appconfig、autostart、log_kit、paths、tray_kit、update_helper）、`build.bat`、`README.md` / `README.zh-CN.md`、`bin/plink.exe`（内置密码引擎）、`.github/workflows/`（CI）。
+源码结构：`src/main.py`、`src/template/`（家族模板件：appconfig、autostart、log_kit、paths、tray_kit、update_helper）、`build.bat`、`README.md` / `README.zh-CN.md`、`bin/plink.exe`（内置密码引擎）、`.github/workflows/`（CI）。
 
 正式发布走 CI：推送 `v<semver>` tag（如 `v1.2.1`），release workflow 会在 GitHub Releases 发布 zip + sha256——与站内更新器消费的布局一致。版本号单一事实源在 `main.py` 的 `VERSION`；随包 exe 名为不带版本号的 `opencodex-helper.exe`。
 
@@ -92,7 +92,7 @@ Windows 托盘工具：把**多台 VM 的 127.0.0.1:10100** 转发到**本机 op
 - **i18n 覆盖（§T1）—— 已实现，附具名残留**：模块已采纳，`--lang-audit` 对 `src/main.py` 报 0 条表外中文，本工具全部菜单/通知/对话框/状态行/服务与错误信息均已翻译。残留：审计只扫 `src/main.py`，其他文件产出的文案（如 `tray_kit` 未传参时自带的对话框中文、Python/Tk 异常串）不在覆盖内；未走 `i18n.t()` 的一律回落中文——如实登记，不假装全覆盖。
 - **设置窗口（§T3）**：目标、密钥、密码全靠托盘子菜单和 Tk 弹窗编辑；有 9 个配置键却没有统一设置窗口。
 - **`release.bat`**：不存在。`tests/` 已存在（2026-09-19）——`tests/test_*.py` 覆盖单实例守卫、真实启动路径、语言切换菜单刷新、更新链、UI 封送与退出 fail-open 路径，且 `build.bat` 把**每一个**都当门禁跑，冻结的 `--smoke` 不再是唯一业务检查。
-- **`service_link`（§G4.2 参考状态机）**：模板已提供 `modules/service_link`，本工具未采纳。
+- **`service_link`（§G4.2 参考状态机）**：模板已提供 `template/service_link`，本工具未采纳。
 - **退出路径 fail-open（§G4.1-4 / T7）—— 过渡版内联形态，待吸收模板件**：弹窗链路不可用时（`Tk()` 抛 `TclError`，例如 `_internal/` 被掏空），`on_quit` 记一行日志后按 `quit_stop_tunnels=False` 照常退出，不再静默拒绝退出。它**刻意**是 `on_quit` 内的本地三态裁决；义务是待 `tray_kit` 提供统一形态后改为调用共享件（见 CHANGELOG `## Unreleased`）。
 
 ## 常见问题

@@ -20,8 +20,8 @@ _TMP = scratch_dir("ocx-single-test-")
 os.environ["OPENCODEX_HELPER_DATA_DIR"] = _TMP
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from modules import tray_kit  # noqa: E402
-from modules.appconfig import APP_ID  # noqa: E402
+from template import tray_kit  # noqa: E402
+from template.appconfig import APP_ID  # noqa: E402
 
 FAILS = []
 EXPECTED_NAME = r"Local\%s-single-instance" % APP_ID
