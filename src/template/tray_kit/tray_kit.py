@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# TEMPLATE-FROM: my-diy-tool-template/template/tray_kit/tray_kit.py | TEMPLATE-VER: 2.3.0 | TEMPLATE-VER: 2.3.0
+# TEMPLATE-FROM: my-diy-tool-template/template/tray_kit/tray_kit.py | TEMPLATE-VER: 2.3.0
 """T7｜托盘机制件：单实例互斥体、退出请求文件 + 监视循环、面板地址行掩码、菜单签名重画（含 menu_is_open 探测器）、退出确认框（2.0.0）。
 
 2.3.0（W7 Decision 9）：**menu_is_open 下沉**——MenuSignature 的配套探测器

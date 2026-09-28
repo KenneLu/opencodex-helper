@@ -5,7 +5,7 @@
   "menu_open_dashboard": "打开 opencodex 面板",
   "menu_start_all": "启动全部隧道",
   "menu_stop_all": "停止全部隧道",
-  "menu_targets": "穿透目标",
+  "menu_targets": "ssh 目标",
   "menu_add_target": "＋ 添加目标…",
   "menu_edit_target": "✎ 编辑目标…",
   "menu_delete_target": "－ 删除目标…",
@@ -20,14 +20,12 @@
   "menu_refresh_interval": "状态刷新间隔",
   "menu_language": "English / 中文",
   "menu_quit": "退出",
-
   "probe_20s": "20 秒",
   "probe_1m": "1 分钟",
   "probe_5m": "5 分钟",
   "probe_10m": "10 分钟",
   "probe_30m": "30 分钟",
   "probe_1h": "1 小时",
-
   "status_tunnels_connected": "隧道状态: 已连接 (%s/%s)",
   "status_tunnels_down": "隧道状态: 未连接",
   "ocx_status_online": "opencodex 服务: 在线 (端口 %s)",
@@ -36,7 +34,6 @@
   "safety_protected": "重启安全: 已保护",
   "safety_native": "重启安全: 原生路由",
   "safety_unavailable": "重启安全: 不可用",
-
   "tgt_connected_skip": "%s 隧道已连接，未重复启动",
   "tgt_need_password": "%s: 需要密码（或先生成 SSH 令牌）",
   "tgt_start_failed": "%s 启动失败: %s",
@@ -47,7 +44,6 @@
   "tgt_stop_failed": "%s 停止失败",
   "tunnel_connected": "%s 隧道已连接",
   "tunnel_disconnected": "%s 隧道已断开",
-
   "notify_target_added": "已添加目标 %s",
   "notify_token_scan_done": "令牌扫描完成",
   "notify_interval_set": "状态刷新间隔已设为 %s 秒",
@@ -60,7 +56,6 @@
   "notify_update_ready": "更新已就绪，退出托盘后将自动完成升级并重启",
   "notify_update_download_failed": "下载更新失败：%s",
   "notify_update_failed_prev": "上次自动更新失败，已回退到原版本并保留现场；详见 update.log",
-
   "ocx_started": "opencodex 服务已启动（端口 %s）",
   "ocx_start_failed": "opencodex 服务启动失败: %s",
   "ocx_stopped": "opencodex 服务已停止",
@@ -68,7 +63,6 @@
   "ocx_restarted": "opencodex 服务已重启（端口 %s）",
   "ocx_restart_failed": "opencodex 服务重启失败: %s",
   "err_unknown": "未知错误",
-
   "dlg_ok": "确定",
   "dlg_cancel": "取消",
   "dlg_browse": "浏览…",
@@ -102,7 +96,6 @@
   "token_deploy_cancelled": "已取消部署（密钥已生成，可稍后手动部署）",
   "token_deploy_failed": "公钥部署失败: %s",
   "token_done": "令牌已生成并部署到 %s",
-
   "quit_checkbox": "同时关闭当前隧道（含外部手动启动的）",
   "quit_native_text": "确定退出 opencodex-helper？清理选项按配置（退出后可在配置中修改）。",
   "dup_hint": "请看任务栏右下角通知区域里的图标，本次启动已取消，不会多开一个托盘。",

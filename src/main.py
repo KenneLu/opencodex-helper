@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 opencodex 助手（opencodex-helper）
-多目标 SSH 反向隧道管理：把多台 VM 的 127.0.0.1:10100 转发到本机 opencodex。
+多 ssh 目标反向隧道管理：把各 ssh 目标的 127.0.0.1:10100 转发到本机 opencodex。
 认证：优先 SSH 密钥；无令牌时用内置 plink + 密码（弹窗输入，仅内存缓存）。
 启动时自动扫描各目标的令牌状态，菜单中用钥匙符号显示。
 内置 opencodex 服务控制（启停/重启/健康/安全状态），替代官方托盘。
@@ -806,50 +806,8 @@ def on_quit(icon, item):
 # 而 pystray 的重建是 DestroyMenu + CreatePopupMenu：菜单正开着时重建 = 把它从用户
 # 手底下抽走（鼠标滑着滑着突然失焦）。改成：状态提成签名 → 只有签名变了才重建 →
 # 菜单开着时推迟，由 1.5s 补画拍补上。
-GUI_INMENUMODE = 0x00000004
+# menu_is_open 探测器已随 tray_kit 2.3.0 下沉模板（W7 Decision 9），此处不再内联。
 _TRAY_ICON = None
-
-
-def menu_is_open():
-    """系统弹出菜单是否正开着（E2-09）。
-
-    探测：菜单模态标记 GUI_INMENUMODE 挂在**调用 TrackPopupMenu 的那个线程**上，
-    遍历本进程线程去问；再以「前台窗口是系统菜单类 #32768」兜底。探测失败当没开着
-    （宁可多重建一次，也不能因为探测失败就永远不重建）。
-    """
-    if os.name != "nt":
-        return False
-    try:
-        import ctypes
-        from ctypes import wintypes
-
-        class GUITHREADINFO(ctypes.Structure):
-            _fields_ = [("cbSize", wintypes.DWORD), ("flags", wintypes.DWORD),
-                        ("hwndActive", wintypes.HWND), ("hwndFocus", wintypes.HWND),
-                        ("hwndCapture", wintypes.HWND), ("hwndMenuOwner", wintypes.HWND),
-                        ("hwndMoveSize", wintypes.HWND), ("hwndCaret", wintypes.HWND),
-                        ("rcCaret", wintypes.RECT)]
-
-        user32 = ctypes.windll.user32
-        for thread in threading.enumerate():
-            tid = getattr(thread, "native_id", None)
-            if not tid:
-                continue
-            info = GUITHREADINFO()
-            info.cbSize = ctypes.sizeof(GUITHREADINFO)
-            if not user32.GetGUIThreadInfo(int(tid), ctypes.byref(info)):
-                continue
-            if info.flags & GUI_INMENUMODE:
-                return True
-        hwnd = user32.GetForegroundWindow()
-        if hwnd:
-            name = ctypes.create_unicode_buffer(32)
-            user32.GetClassNameW(hwnd, name, 32)
-            if name.value == "#32768":
-                return True
-    except Exception:
-        return False
-    return False
 
 
 def _menu_signature():
@@ -892,7 +850,7 @@ def rebuild_menu():
     icon.update_menu()
 
 
-MENU_SIG = tray_kit.MenuSignature(rebuild_menu, menu_is_open=menu_is_open, log=_log)
+MENU_SIG = tray_kit.MenuSignature(rebuild_menu, menu_is_open=tray_kit.menu_is_open, log=_log)
 
 
 def refresh_icon(icon):

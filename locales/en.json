@@ -5,7 +5,7 @@
   "menu_open_dashboard": "Open opencodex panel",
   "menu_start_all": "Start all tunnels",
   "menu_stop_all": "Stop all tunnels",
-  "menu_targets": "Targets",
+  "menu_targets": "ssh targets",
   "menu_add_target": "＋ Add target…",
   "menu_edit_target": "✎ Edit target…",
   "menu_delete_target": "－ Remove target…",
@@ -20,14 +20,12 @@
   "menu_refresh_interval": "Status refresh interval",
   "menu_language": "English / 中文",
   "menu_quit": "Quit",
-
   "probe_20s": "20 s",
   "probe_1m": "1 min",
   "probe_5m": "5 min",
   "probe_10m": "10 min",
   "probe_30m": "30 min",
   "probe_1h": "1 hour",
-
   "status_tunnels_connected": "Tunnels: connected (%s/%s)",
   "status_tunnels_down": "Tunnels: not connected",
   "ocx_status_online": "opencodex service: online (port %s)",
@@ -36,7 +34,6 @@
   "safety_protected": "Restart safety: protected",
   "safety_native": "Restart safety: native routing",
   "safety_unavailable": "Restart safety: unavailable",
-
   "tgt_connected_skip": "%s tunnel is already connected; not started again",
   "tgt_need_password": "%s: password required (or generate an SSH token first)",
   "tgt_start_failed": "%s failed to start: %s",
@@ -47,7 +44,6 @@
   "tgt_stop_failed": "%s failed to stop",
   "tunnel_connected": "%s tunnel connected",
   "tunnel_disconnected": "%s tunnel disconnected",
-
   "notify_target_added": "Target %s added",
   "notify_token_scan_done": "Token scan finished",
   "notify_interval_set": "Status refresh interval set to %s s",
@@ -60,7 +56,6 @@
   "notify_update_ready": "Update is ready; it will be applied and restarted after you quit the tray",
   "notify_update_download_failed": "Update download failed: %s",
   "notify_update_failed_prev": "The previous automatic update failed; it was rolled back and the scene preserved. See update.log for details.",
-
   "ocx_started": "opencodex service started (port %s)",
   "ocx_start_failed": "opencodex service failed to start: %s",
   "ocx_stopped": "opencodex service stopped",
@@ -68,7 +63,6 @@
   "ocx_restarted": "opencodex service restarted (port %s)",
   "ocx_restart_failed": "opencodex service failed to restart: %s",
   "err_unknown": "unknown error",
-
   "dlg_ok": "OK",
   "dlg_cancel": "Cancel",
   "dlg_browse": "Browse…",
@@ -102,7 +96,6 @@
   "token_deploy_cancelled": "Deployment cancelled (the key was generated; you can deploy it later)",
   "token_deploy_failed": "Public-key deployment failed: %s",
   "token_done": "Token generated and deployed to %s",
-
   "quit_checkbox": "Also stop the current tunnels (including externally started ones)",
   "quit_native_text": "Quit opencodex-helper? Cleanup follows your saved setting (editable in the config afterwards).",
   "dup_hint": "See the icon in the notification area; this launch was cancelled and no second tray was opened.",
