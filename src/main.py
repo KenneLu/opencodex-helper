@@ -693,6 +693,13 @@ def on_toggle_autostart(icon, item):
     _log(f"autostart -> {autostart.is_autostart_enabled()}")
     refresh_icon(icon)
 
+def on_toggle_tunnels_on_start(icon, item):
+    """☑服务就绪后启动隧道（蓝本第 5 段）：W7 boot 编排的开关化，默认 True=原行为。"""
+    CFG["start_tunnels_with_service"] = not bool(CFG.get("start_tunnels_with_service", True))
+    save_config()
+    _log(f"start_tunnels_with_service -> {CFG['start_tunnels_with_service']}")
+    refresh_icon(icon)
+
 def on_toggle_language(icon, item):
     """中英切换（T1）：改语言 → 持久化 → 显式重建菜单（D14）。"""
     new_lang = "en" if i18n.current_lang() == "zh" else "zh"
@@ -818,6 +825,7 @@ def _menu_signature():
       · opencodex 在线行与安全行 ← _ocx_state
       · 「下载并更新」的 enabled ← LATEST_VERSION
       · 自启的 checked ← 注册表
+      · ☑随启动隧道的 checked ← CFG（W8-A）
       · 探测间隔子菜单的 checked ← CFG
       · 全部菜单文案 ← i18n.current_lang()
     目标的 name/host 也在签名里——改名或改地址同样要让菜单重画。
@@ -834,6 +842,7 @@ def _menu_signature():
         tuple(sorted(_ocx_state.items())),
         LATEST_VERSION is not None,
         autostart.is_autostart_enabled(),
+        bool(CFG.get("start_tunnels_with_service", True)),
         CFG.get("probe_interval_sec", 600),
     )
 
@@ -1040,7 +1049,12 @@ def download_update_menu(_icon=None, _item=None):
 
 
 def build_menu():
-    """house 标准八段式（执行文档 D14）：信息 → 更新 → 默认入口 → 服务控制 → 业务 → 打开 → 偏好 → 退出。"""
+    """house 标准八段式（执行文档 D14）：信息 → 更新 → 默认入口 → 服务控制 → 业务 → 打开 → 偏好 → 退出。
+
+    W8-A 按用户蓝本（旧版 reme 菜单截图）对齐 ssh 目标组形态：目标子菜单、启动/停止
+    全部、☑服务就绪后启动隧道**同组紧贴**（蓝本第 5 段）；ocx 本体启停归位服务控制
+    段（蓝本第 4 段启停组位），不再拆成两段。
+    """
     return pystray.Menu(
         # ① 信息区（只读；此前 ocx 状态行错位在菜单中部，本次归位到顶上）
         pystray.MenuItem(lambda item: f'{i18n.t("app_name")} v{VERSION}', None, enabled=False),
@@ -1056,29 +1070,29 @@ def build_menu():
         # ③ 默认入口（双击托盘）
         pystray.MenuItem(i18n.t("menu_open_dashboard"), on_open_dashboard, default=True),
         pystray.Menu.SEPARATOR,
-        # ④ 服务控制（隧道）
-        pystray.MenuItem(i18n.t("menu_start_all"), on_start_all),
-        pystray.MenuItem(i18n.t("menu_stop_all"), on_stop_all),
-        pystray.Menu.SEPARATOR,
-        # ⑤ 业务区
-        pystray.MenuItem(i18n.t("menu_targets"), build_targets_menu()),
-        pystray.Menu.SEPARATOR,
-        # ⑥ 服务控制（opencodex 本体）
+        # ④ 服务控制（opencodex 本体；蓝本启停组位）
         pystray.MenuItem(i18n.t("menu_ocx_start"), on_ocx_start),
         pystray.MenuItem(i18n.t("menu_ocx_stop"), on_ocx_stop),
         pystray.MenuItem(i18n.t("menu_ocx_restart"), on_ocx_restart),
         pystray.Menu.SEPARATOR,
-        # ⑦ 打开区
+        # ⑤ ssh 目标组（蓝本第 5 段：子菜单 + 启停全部 + ☑随启动，同组紧贴不拆段）
+        pystray.MenuItem(i18n.t("menu_targets"), build_targets_menu()),
+        pystray.MenuItem(i18n.t("menu_start_all"), on_start_all),
+        pystray.MenuItem(i18n.t("menu_stop_all"), on_stop_all),
+        pystray.MenuItem(i18n.t("menu_tunnels_on_start"), on_toggle_tunnels_on_start,
+                         checked=lambda item: bool(CFG.get("start_tunnels_with_service", True))),
+        pystray.Menu.SEPARATOR,
+        # ⑥ 打开区
         pystray.MenuItem(i18n.t("menu_open_ocx_dir"), on_open_ocx_dir),
         pystray.MenuItem(i18n.t("menu_open_logs"), on_open_log),
         pystray.Menu.SEPARATOR,
-        # ⑧ 偏好区
+        # ⑦ 偏好区
         pystray.MenuItem(i18n.t("menu_autostart"), on_toggle_autostart,
                          checked=lambda item: autostart.is_autostart_enabled()),
         pystray.MenuItem(i18n.t("menu_refresh_interval"), build_probe_menu()),
         pystray.MenuItem(i18n.t("menu_language"), on_toggle_language),
         pystray.Menu.SEPARATOR,
-        # ⑨ 退出（恒最后）
+        # ⑧ 退出（恒最后）
         pystray.MenuItem(i18n.t("menu_quit"), on_quit),
     )
 
@@ -1350,7 +1364,9 @@ def main():
             launch=_launch_ocx,
             terminate=lambda h: run_ocx(["stop"], 60),
             log=_log)
-        ocx_service.on_ready(_start_tunnels)
+        # W8-A：☑「服务就绪后启动隧道」的 gate（蓝本第 5 段）。默认 True=boot 编排原行为。
+        if CFG.get("start_tunnels_with_service", True):
+            ocx_service.on_ready(_start_tunnels)
         ok, msg = ocx_service.ensure_running(timeout=90.0)
         _log(f"boot orchestration: service {msg}")
     threading.Thread(target=_boot_orchestrate, name="ocx-boot", daemon=True).start()
