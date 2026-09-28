@@ -30,7 +30,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 import pystray
 from PIL import Image, ImageDraw
 
-from template import autostart, i18n, log_kit, paths, tray_kit, update_helper   # noqa: E402
+from template import autostart, i18n, log_kit, paths, tray_icons, tray_kit, update_helper   # noqa: E402
 from template.appconfig import APP_ID   # noqa: E402
 from template.paths import APP_DIR, CONFIG_PATH, LOG_DIR, UPDATE_DIR, USER_DATA_DIR   # noqa: E402
 
@@ -840,7 +840,7 @@ def rebuild_menu():
         return
     with _lock:
         connected = global_connected_count() > 0
-    icon.icon = make_icon_image(connected)
+    tray_icons.tray_icons.set_state("connected" if connected else "disconnected")
     icon.menu = build_menu()
     icon.update_menu()
 
@@ -1069,15 +1069,6 @@ def build_menu():
         # ⑨ 退出（恒最后）
         pystray.MenuItem(i18n.t("menu_quit"), on_quit),
     )
-
-def make_icon_image(connected):
-    size = 64
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    color = (76, 175, 80) if connected else (158, 158, 158)
-    d.ellipse((4, 4, 60, 60), fill=color)
-    d.polygon([(32, 12), (48, 30), (39, 30), (39, 52), (25, 52), (25, 30), (16, 30)], fill=(255, 255, 255))
-    return img
 
 # ---------------- 开机自启 / ocx ----------------
 # 自启三件套（含稳定位指向与启动自愈）全部来自 T3 模板件 template/autostart。
@@ -1343,8 +1334,10 @@ def main():
     threading.Thread(target=startup_update_check, name="ocx-update-check", daemon=True).start()
     _ocx_state.update(ocx_health())
     _log(f"ocx initial health: ok={_ocx_state['ok']} port={_ocx_state['port']} safety={_ocx_state['safety']}")
-    icon = pystray.Icon("opencodex-helper", icon=make_icon_image(False),
+    tray_icons.tray_icons.init()
+    icon = pystray.Icon("opencodex-helper", icon=tray_icons.tray_icons.get("disconnected"),
                         title=f'{i18n.t("app_name")} v{VERSION}', menu=build_menu())
+    tray_icons.tray_icons.bind(icon, "disconnected")
     _TRAY_ICON = icon   # MenuSignature 的重建动作要用（状态变更处只调 refresh_icon）
     threading.Thread(target=monitor_loop, args=(icon,), daemon=True).start()
     threading.Thread(target=ocx_monitor_loop, args=(icon,), daemon=True).start()

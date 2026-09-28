@@ -231,6 +231,7 @@ echo [BUILD] PyInstaller onedir noconsole ...
   src\main.py ^
   --add-data "%~dp0%APPNAME%.ico;." ^
   --add-data "%~dp0%APPNAME%-taskbar.ico;." ^
+  --add-data "%~dp0resources;resources" ^
   --add-data "%~dp0bin\plink.exe;bin" ^
   --add-data "%~dp0locales;locales" ^
   --collect-all psutil ^

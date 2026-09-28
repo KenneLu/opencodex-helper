@@ -26,3 +26,23 @@ def _draw_icon(size):
 
 ICON_ASSET = None
 ICON_DRAW = _draw_icon
+
+
+def _state_icon(size, color):
+    """W6 状态贴图：与 _draw_icon 同形状，圆底色参数化（connected=绿/disconnected=灰）。"""
+    from PIL import Image, ImageDraw
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    f = size / 64.0
+    d.ellipse((4 * f, 4 * f, 60 * f, 60 * f), fill=color)
+    d.polygon([(32 * f, 12 * f), (48 * f, 30 * f), (39 * f, 39 * f),
+               (39 * f, 52 * f), (25 * f, 52 * f), (25 * f, 30 * f),
+               (16 * f, 30 * f)], fill=(255, 255, 255, 255))
+    return img
+
+
+# W6 状态贴图（构建期产帧，运行时 tray_icons 加载）
+ICON_STATE_ARTISTS = {
+    "connected": lambda base: _state_icon(256, (76, 175, 80, 255)),
+    "disconnected": lambda base: _state_icon(256, (158, 158, 158, 255)),
+}
