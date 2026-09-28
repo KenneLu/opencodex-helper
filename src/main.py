@@ -31,6 +31,8 @@ import pystray
 from PIL import Image, ImageDraw
 
 from template import autostart, i18n, log_kit, paths, tray_icons, tray_kit, update_helper   # noqa: E402
+from template.service_link import service_link   # noqa: E402  W7：服务编排（boot ensure）
+from template.tunnel_kit import tunnel_kit   # noqa: E402  W7：Decision 10 参数正本 + 自愈语义
 from template.appconfig import APP_ID   # noqa: E402
 from template.paths import APP_DIR, CONFIG_PATH, LOG_DIR, UPDATE_DIR, USER_DATA_DIR   # noqa: E402
 
@@ -166,6 +168,22 @@ def ssh_args(t, extra=None):
         a += extra
     return a
 
+
+def _key_tunnel_cmd(t):
+    """密钥型隧道长连接命令行（W7）：认证段（本工具）+ Decision 10 参数段与 -R 段（tunnel_kit 正本）。
+
+    keepalive 三参 + ExitOnForwardFailure 自模板 DEFAULTS（appconfig 可调的锚点在
+    tunnel_kit；本工具暂用默认值，后续需要再进 config）。
+    """
+    auth = ["-o", "BatchMode=yes", "-o", f"ConnectTimeout={CFG['ssh_connect_timeout_sec']}",
+            "-o", "StrictHostKeyChecking=accept-new"]
+    if t.get("key"):
+        auth += ["-i", str(Path(t["key"]).expanduser())]
+    target = {"host": conn_str(t), "port": t.get("port", 22),
+              "remote_port": t.get("remote_port", 10100),
+              "local_host": "127.0.0.1", "local_port": CFG["local_port"]}
+    return ["ssh"] + auth + tunnel_kit.build_reverse_args(target)
+
 def plink_args(t, pw, remote_cmd=None):
     a = [str(PLINK_PATH), "-batch", "-pw", pw, "-P", str(t.get("port", 22))]
     if remote_cmd is not None:
@@ -179,7 +197,36 @@ _state = {}          # target_key -> bool（隧道连接状态）
 _token_status = {}   # target_key -> True/False/None
 _tunnel_procs = {}   # target_key -> Popen
 _pw_cache = {}       # target_key -> 密码（仅内存）
+# W7 自愈（Decision 10）：连续失败确认计数 + 退避门（下次允许重连的时刻）
+_heal = {}           # target_key -> {"streak": int, "next_retry": float}
 _lock = threading.Lock()
+
+
+def _heal_key_only(t):
+    """自愈只对密钥型目标：密码型重连会弹口令框打扰用户（红线裁量，登记不自动）。"""
+    return bool(t.get("key")) or _token_status.get(target_key(t)) is True
+
+
+def ensure_target_healed(t):
+    """监控循环里调：probe 失败连续 confirm_n 次 → 退避门后重连（幂等 start_target）。
+
+    返回 None（纯副作用函数）：状态写 _state、日志走 _log；密码型/退避未到 → 只计数不动手。
+    """
+    key = target_key(t)
+    h = _heal.setdefault(key, {"streak": 0, "next_retry": 0.0})
+    h["streak"] += 1
+    if h["streak"] < tunnel_kit.DEFAULTS["confirm_n"]:
+        _log(f"heal {t['name']}: unconfirmed ({h['streak']}/{tunnel_kit.DEFAULTS['confirm_n']})")
+        return
+    if not _heal_key_only(t):
+        _log(f"heal {t['name']}: password target, auto-reconnect skipped (would prompt)")
+        return
+    if time.monotonic() < h["next_retry"]:
+        return
+    h["next_retry"] = time.monotonic() + tunnel_kit.DEFAULTS["backoff_start_s"]
+    _log(f"heal {t['name']}: confirmed dead, reconnecting (backoff {tunnel_kit.DEFAULTS['backoff_start_s']:.0f}s)")
+    ok, msg = start_target(t)
+    _log(f"heal {t['name']}: reconnect ok={ok} ({msg})")
 
 def enabled_targets():
     return [t for t in CFG["targets"] if t.get("enabled", True)]
@@ -316,7 +363,7 @@ def start_target(t):
         ensure_plink_hostkey(t, pw)
         cmd = plink_args(t, pw)
     else:
-        cmd = ssh_args(t, ["-N", "-R", f"{t.get('remote_port',10100)}:127.0.0.1:{CFG['local_port']}", conn_str(t)])
+        cmd = _key_tunnel_cmd(t)
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                 creationflags=CREATE_NO_WINDOW, cwd=HOME_DIR)
@@ -931,6 +978,13 @@ def monitor_loop(icon):
         for t in enabled_targets():
             key = target_key(t)
             ok = probe_target(t)
+            h = _heal.get(key)
+            if ok:
+                if h:
+                    h["streak"] = 0
+            else:
+                # W7 自愈（F4 缺口补全）：连续失败确认后自动重连（密钥型 + 退避）
+                ensure_target_healed(t)
             with _lock:
                 prev = _state.get(key, False)
                 _state[key] = ok
@@ -1319,6 +1373,29 @@ def main():
 
     threading.Thread(target=scan_all_tokens, daemon=True).start()
     threading.Thread(target=initial_probe_all, daemon=True).start()
+    # W7 boot 编排（用户需求：工具启动→拉服务→就绪后起隧道）：
+    # service_link.ensure_running 一次性收敛（已在跑→收养；没跑→启动+等就绪），
+    # on_ready 后逐 enabled 目标起隧道（幂等 start_target，密码型缺令牌会引导输入）。
+    def _boot_orchestrate():
+        def _start_tunnels():
+            for t in enabled_targets():
+                try:
+                    ok, msg = start_target(t)
+                    _log(f"boot tunnel {t['name']}: ok={ok} ({msg})")
+                except Exception as exc:  # noqa: BLE001 - 单目标失败不拦其余
+                    _log(f"boot tunnel {t['name']} failed: {exc}")
+        def _launch_ocx():
+            r = run_ocx(["start"], 90)
+            return r
+        ocx_service = service_link.ServiceLink(
+            probe=lambda: ocx_health()["ok"],
+            launch=_launch_ocx,
+            terminate=lambda h: run_ocx(["stop"], 60),
+            log=_log)
+        ocx_service.on_ready(_start_tunnels)
+        ok, msg = ocx_service.ensure_running(timeout=90.0)
+        _log(f"boot orchestration: service {msg}")
+    threading.Thread(target=_boot_orchestrate, name="ocx-boot", daemon=True).start()
 
     def startup_update_check():
         global LATEST_VERSION
