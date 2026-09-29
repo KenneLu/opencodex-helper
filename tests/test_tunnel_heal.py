@@ -61,6 +61,38 @@ try:
 finally:
     M.start_target = orig_start
 
+# ---- ③b N1（09-29）：连续失败重连 → 退避翻倍；成功复位 ----
+M._token_status[M.target_key(t)] = True
+calls2 = {"n": 0}
+
+
+def failing_start(tt):
+    calls2["n"] += 1
+    return False, "start failed"
+
+
+M.start_target = failing_start
+try:
+    M._heal.pop(M.target_key(t), None)
+    M.ensure_target_healed(t)          # 先走一拍让 setdefault 建键（unconfirmed 早退）
+    for expect in (60.0, 120.0, 240.0):
+        hh = M._heal[M.target_key(t)]
+        hh["streak"] = tunnel_kit.DEFAULTS["confirm_n"]
+        hh["next_retry"] = 0.0
+        M.ensure_target_healed(t)
+        got = M._heal[M.target_key(t)]["backoff"]
+        check(f"失败重连后退避翻倍至 {expect:.0f}s", got == expect, got)
+    M.start_target = fake_start
+    hh = M._heal[M.target_key(t)]
+    hh["streak"] = tunnel_kit.DEFAULTS["confirm_n"]
+    hh["next_retry"] = 0.0
+    M.ensure_target_healed(t)
+    check("重连成功后退避复位至 30s",
+          M._heal[M.target_key(t)]["backoff"] == tunnel_kit.DEFAULTS["backoff_start_s"],
+          M._heal[M.target_key(t)]["backoff"])
+finally:
+    M.start_target = orig_start
+
 # ---- ④ 密码型：不自动重连（弹窗红线） ----
 pw_t = {"name": "pw", "user": "u", "host": "127.0.0.1", "port": 1, "remote_port": 1,
         "key": "", "enabled": True}
@@ -73,6 +105,19 @@ try:
     check("密码型确认死后仍不自动重连", calls["n"] == 0, calls)
 finally:
     M.start_target = orig_start
+
+# ---- ⑤ N3（09-29）：模板 0.1.2 probe 异常 fail-open（蓝本 #45 对齐） ----
+tt = tunnel_kit.TunnelTarget(
+    {"host": "u@h", "remote_port": 1, "local_port": 1},
+    probe=lambda: (_ for _ in ()).throw(RuntimeError("probe broken")),
+    spawn=lambda args: (_ for _ in ()).throw(AssertionError("never spawn")))
+tt.state = tunnel_kit.STATE_OWNED
+check("probe 异常时 OWNED 态 fail-open（不判死）", tt.alive() is True)
+tt.state = tunnel_kit.STATE_NONE
+check("probe 异常时 NONE 态仍 False（无链路可保）", tt.alive() is False)
+hdr = [ln for ln in open("src/template/tunnel_kit/tunnel_kit.py", encoding="utf-8").read().splitlines()[:3]
+       if "TEMPLATE-VER" in ln]
+check("副本头 VER=0.1.2（头变换 TEMPLATE-FROM）", bool(hdr) and "0.1.2" in hdr[0] and "TEMPLATE-FROM" in hdr[0], hdr)
 
 print("TUNNEL HEAL TEST " + ("FAILED: " + ",".join(FAILS) if FAILS else "OK"), flush=True)
 sys.exit(1 if FAILS else 0)

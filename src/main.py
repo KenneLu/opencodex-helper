@@ -211,9 +211,12 @@ def ensure_target_healed(t):
     """监控循环里调：probe 失败连续 confirm_n 次 → 退避门后重连（幂等 start_target）。
 
     返回 None（纯副作用函数）：状态写 _state、日志走 _log；密码型/退避未到 → 只计数不动手。
+    退避为 D10 完整序列（N1 修复，09-29）：30s 起步 → 每次失败重连 ×2 → 600s 封顶 →
+    成功即复位（probe 恢复时 monitor_loop 清 streak 处同步复位）。
     """
     key = target_key(t)
     h = _heal.setdefault(key, {"streak": 0, "next_retry": 0.0})
+    h.setdefault("backoff", tunnel_kit.DEFAULTS["backoff_start_s"])
     h["streak"] += 1
     if h["streak"] < tunnel_kit.DEFAULTS["confirm_n"]:
         _log(f"heal {t['name']}: unconfirmed ({h['streak']}/{tunnel_kit.DEFAULTS['confirm_n']})")
@@ -223,10 +226,14 @@ def ensure_target_healed(t):
         return
     if time.monotonic() < h["next_retry"]:
         return
-    h["next_retry"] = time.monotonic() + tunnel_kit.DEFAULTS["backoff_start_s"]
-    _log(f"heal {t['name']}: confirmed dead, reconnecting (backoff {tunnel_kit.DEFAULTS['backoff_start_s']:.0f}s)")
+    h["next_retry"] = time.monotonic() + h["backoff"]
+    _log(f"heal {t['name']}: confirmed dead, reconnecting (backoff {h['backoff']:.0f}s)")
     ok, msg = start_target(t)
-    _log(f"heal {t['name']}: reconnect ok={ok} ({msg})")
+    if ok:
+        h["backoff"] = tunnel_kit.DEFAULTS["backoff_start_s"]
+    else:
+        h["backoff"] = min(h["backoff"] * 2, tunnel_kit.DEFAULTS["backoff_max_s"])
+    _log(f"heal {t['name']}: reconnect ok={ok} ({msg}, next backoff {h['backoff']:.0f}s)")
 
 def enabled_targets():
     return [t for t in CFG["targets"] if t.get("enabled", True)]
@@ -949,6 +956,8 @@ def monitor_loop(icon):
             if ok:
                 if h:
                     h["streak"] = 0
+                    # N1：探测恢复 = 链路健康，退避同步复位（D10 成功复位语义）
+                    h["backoff"] = tunnel_kit.DEFAULTS["backoff_start_s"]
             else:
                 # W7 自愈（F4 缺口补全）：连续失败确认后自动重连（密钥型 + 退避）
                 ensure_target_healed(t)
