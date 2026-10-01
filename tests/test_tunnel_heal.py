@@ -90,6 +90,21 @@ try:
     check("重连成功后退避复位至 30s",
           M._heal[M.target_key(t)]["backoff"] == tunnel_kit.DEFAULTS["backoff_start_s"],
           M._heal[M.target_key(t)]["backoff"])
+    # F-R12（10-01 复审补）：600 封顶分支（480→600 后不再增长）
+    M.start_target = failing_start
+    hh = M._heal[M.target_key(t)]
+    hh["backoff"] = 480.0
+    hh["streak"] = tunnel_kit.DEFAULTS["confirm_n"]
+    hh["next_retry"] = 0.0
+    M.ensure_target_healed(t)
+    b1 = M._heal[M.target_key(t)]["backoff"]
+    hh = M._heal[M.target_key(t)]
+    hh["streak"] = tunnel_kit.DEFAULTS["confirm_n"]
+    hh["next_retry"] = 0.0
+    M.ensure_target_healed(t)
+    b2 = M._heal[M.target_key(t)]["backoff"]
+    check("退避 600 封顶（480→600→600）",
+          b1 == tunnel_kit.DEFAULTS["backoff_max_s"] and b2 == b1, (b1, b2))
 finally:
     M.start_target = orig_start
 
@@ -110,9 +125,12 @@ finally:
 tt = tunnel_kit.TunnelTarget(
     {"host": "u@h", "remote_port": 1, "local_port": 1},
     probe=lambda: (_ for _ in ()).throw(RuntimeError("probe broken")),
-    spawn=lambda args: (_ for _ in ()).throw(AssertionError("never spawn")))
+    spawn=lambda args: (_ for _ in ()).throw(AssertionError("never spawn")),
+    matches=lambda cmdline: True)   # ADOPTED 腿：让 tasklist 扫描必命中（Windows 进程表非空）
 tt.state = tunnel_kit.STATE_OWNED
 check("probe 异常时 OWNED 态 fail-open（不判死）", tt.alive() is True)
+tt.state = tunnel_kit.STATE_ADOPTED
+check("probe 异常时 ADOPTED 态 fail-open（F-R12）", tt.alive() is True)
 tt.state = tunnel_kit.STATE_NONE
 check("probe 异常时 NONE 态仍 False（无链路可保）", tt.alive() is False)
 hdr = [ln for ln in open("src/template/tunnel_kit/tunnel_kit.py", encoding="utf-8").read().splitlines()[:3]
