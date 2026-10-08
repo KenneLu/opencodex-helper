@@ -3,6 +3,9 @@
 All notable changes to opencodex-helper are documented here.
 The tagging convention matches the versions in this file.
 
+## 1.2.3
+- **Semantic IDs across docs, comments and bat annotations** (2026-10-08, W9): single-letter reference codes (criterion IDs, spec section anchors, checklist entry IDs, bat step tags) replaced with semantic names throughout; machine-facing checker interface now uses kebab-case slugs. Documentation/comment/naming layer only - no runtime behavior change; gate re-run green (conformance 0 FAIL, sync 0 drift, full-suite compile pass).
+
 ## 1.2.2
 - **Quit no longer stops tunnels when the checkbox is unticked** (2026-09-20, user report; unticked-no-destructive). `on_quit` split the cleanup into `if stop_tunnels: kill...` / else: terminate every OWNED handle - so an unticked box still tore down the tunnels this tool had started. The root cause was reading G4.2 clause 3 (the scope rule: only attached instances, never a blanket signature sweep) as the trigger condition; clause 5 is what decides whether to clean at all, and it says: unticked = service and tunnels outlive the tray. dsh/reme never had this bug because they fold both into a single if <checkbox>: with a log-only else. Guard: template criterion unticked-no-destructive.
 - **probe_target fails open** (2026-09-20). Its return value decides kill_target_procs, so "the probe itself broke" (missing ssh, timeout) must not be folded into "definitely unhealthy" - that is "I am broken, so I tear down the user's tunnel", the opposite of the family rule that a guard must fail open. Now: a non-zero exit from a probe that did run still means unhealthy; an exception (the probe never ran) logs and returns True. Guard: template criterion probe-fail-open.
