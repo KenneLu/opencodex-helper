@@ -33,7 +33,7 @@ jobs:
       # tag-triggered release workflow - so a fix to a gate could not be verified without
       # cutting a release (found while fixing exactly that in local-speak2text/reme-helper).
       # Run it on every push, with the same suite-wide data-dir pin build.bat uses: that pin
-      # is the F11/D12 "belt and braces" - a test file that forgets its own pin must still
+      # is the "belt and braces" - a test file that forgets its own pin must still
       # not touch the machine's real data root.
       # The failing file is named via an annotation, because step logs need sign-in while
       # run-page annotations are public text.

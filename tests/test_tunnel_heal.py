@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""W7 隧道自愈语义（Decision 10）：N=3 确认 / 退避门 / 密码型不自动重连。
+"""隧道自愈语义：N=3 确认 / 退避门 / 密码型不自动重连。
 
 全部假目标（不可达端口），零真实 ssh/隧道接触（红线：测试不碰在用隧道）。
 """
@@ -21,7 +21,7 @@ def check(name, ok, detail=""):
         FAILS.append(name)
 
 
-# ---- ① Decision 10 命令行段（密钥型隧道长连接） ----
+# ---- ① 命令行段（密钥型隧道长连接） ----
 t = {"name": "probe-target", "user": "u", "host": "127.0.0.1", "port": 1,
      "remote_port": 1, "key": "k.pem", "enabled": True}
 M.CFG["local_port"] = 10100
@@ -61,7 +61,7 @@ try:
 finally:
     M.start_target = orig_start
 
-# ---- ③b N1（09-29）：连续失败重连 → 退避翻倍；成功复位 ----
+# ---- ③b （09-29）：连续失败重连 → 退避翻倍；成功复位 ----
 M._token_status[M.target_key(t)] = True
 calls2 = {"n": 0}
 
@@ -90,7 +90,7 @@ try:
     check("重连成功后退避复位至 30s",
           M._heal[M.target_key(t)]["backoff"] == tunnel_kit.DEFAULTS["backoff_start_s"],
           M._heal[M.target_key(t)]["backoff"])
-    # F-R12（10-01 复审补）：600 封顶分支（480→600 后不再增长）
+    # （10-01 复审补）：600 封顶分支（480→600 后不再增长）
     M.start_target = failing_start
     hh = M._heal[M.target_key(t)]
     hh["backoff"] = 480.0
@@ -121,7 +121,7 @@ try:
 finally:
     M.start_target = orig_start
 
-# ---- ⑤ N3（09-29）：模板 0.1.2 probe 异常 fail-open（蓝本 #45 对齐） ----
+# ---- ⑤ （09-29）：模板 0.1.2 probe 异常 fail-open（蓝本对齐） ----
 tt = tunnel_kit.TunnelTarget(
     {"host": "u@h", "remote_port": 1, "local_port": 1},
     probe=lambda: (_ for _ in ()).throw(RuntimeError("probe broken")),
@@ -130,7 +130,7 @@ tt = tunnel_kit.TunnelTarget(
 tt.state = tunnel_kit.STATE_OWNED
 check("probe 异常时 OWNED 态 fail-open（不判死）", tt.alive() is True)
 tt.state = tunnel_kit.STATE_ADOPTED
-check("probe 异常时 ADOPTED 态 fail-open（F-R12）", tt.alive() is True)
+check("probe 异常时 ADOPTED 态 fail-open", tt.alive() is True)
 tt.state = tunnel_kit.STATE_NONE
 check("probe 异常时 NONE 态仍 False（无链路可保）", tt.alive() is False)
 hdr = [ln for ln in open("src/template/tunnel_kit/tunnel_kit.py", encoding="utf-8").read().splitlines()[:3]

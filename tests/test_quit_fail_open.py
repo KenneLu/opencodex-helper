@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""退出路径 fail-open 回归（#44 A）。
+"""退出路径 fail-open 回归。
 
-背景（ocx 1.2.2 实证，2026-09-19 17:00:51 / 17:01:27）：`_internal/` 被 rm -rf 掏空
+背景（ocx 1.2.2 实证）：`_internal/` 被 rm -rf 掏空
 → Tk 读不到 init.tcl → `tkinter.Tk()` 抛 TclError → 富对话框与原生 askyesno **双双
 不可用**。旧代码把「链路不可用」(None) 与「用户明确取消」({"go": False}) 塞进同一个
 `return`，于是点「退出」静默无反应——用户被锁死在工具里，只能用任务管理器。
@@ -15,13 +15,13 @@ Tk 桩的严格性（J-坑）：桩抛的是**真的 `tkinter.TclError`**（从�
 不是长得像的异常——否则生产代码的 `except Exception` 会替我们掩盖类型不符。
 桩只在 `Tk()` 上红，导入本身不红（真 tkinter 也是这个语义：导入不开窗口）。
 
-实例隔离（F11/D12）：import main 之前重定向数据根，绝不碰用户真实 AppData。
+实例隔离：import main 之前重定向数据根，绝不碰用户真实 AppData。
 """
 import os
 import sys
 import types
 from pathlib import Path
-from _cleanup import rmtree_cleanup, scratch_dir  # noqa: E402  （R2 位置 + 删前放句柄）
+from _cleanup import rmtree_cleanup, scratch_dir  # noqa: E402
 
 _TMP = scratch_dir("ocx-quit-test-")
 os.environ["OPENCODEX_HELPER_DATA_DIR"] = _TMP
@@ -191,7 +191,7 @@ M._log = _orig_log
 # tray_kit 2.2.1 把契约收紧成"取消 = {'go': False}，永不 None"。而本仓
 # `_decide_quit()` 里的 `if choice is None:` 是 **fail-open 落点**：一旦有人照旧
 # docstring 把它"修好"成"取消返回 None"，用户点取消就会被读成"链路不可用" ⇒
-# 直接退出 —— 那正是 #44-A 的缺陷原形。所以从**消费侧**把契约钉死。
+# 直接退出 —— 那正是缺陷原形。所以从**消费侧**把契约钉死。
 #
 # 用**假 Tk** 把真函数推到取消分支：不建任何窗口、不碰桌面。真实 Tk 里
 # `wait_window()` 阻塞到窗口被销毁，而"取消"就是"销毁但不改 result"；这里在

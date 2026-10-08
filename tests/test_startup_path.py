@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""正常启动路径存活（D3-01 / SINGLE-04）：跑**真正的 main()**，只把重资源换成替身。
+"""正常启动路径存活（工程·smoke不绕行 / 单实例·smoke不绕）：跑**真正的 main()**，只把重资源换成替身。
 
 回归背景：诊断参数（`--smoke`）曾绕过正常启动路径，于是"冒烟全绿、工具其实打不开"
 能长期共存。本测试走 main() 正常分支，断言守卫放行后启动序列真的推进：日志出现
 `startup`、`migrate_autostart` 被调用、开局扫描/探测都启动了。
 
-实例隔离（F11/D12）：import main 之前重定向数据根与配置。SSH 探测、本地 HTTP 健康
+实例隔离：import main 之前重定向数据根与配置。SSH 探测、本地 HTTP 健康
 检查、托盘与监控循环全部打桩——本测试只验证启动骨架，不触网、不占锁。
 """
 import os
@@ -14,7 +14,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from _cleanup import rmtree_cleanup, scratch_dir  # noqa: E402  （R2 位置 + 删前放句柄）
+from _cleanup import rmtree_cleanup, scratch_dir  # noqa: E402
 
 _TMP = scratch_dir("ocx-startup-test-")
 os.environ["OPENCODEX_HELPER_DATA_DIR"] = _TMP
@@ -40,7 +40,7 @@ def check(name, ok, detail=""):
         FAILS.append(name)
 
 
-# ---- 0) T4 两条自证：先验模板件的真实语义（此时还没打桩） --------------------
+# ---- 0) update_helper 两条自证：先验模板件的真实语义（此时还没打桩） --------------------
 # sweep 只清一小时前的：伪造一个 TEMP 根，老目录该没、新目录和无关目录该留。
 _fake_temp = Path(_TMP) / "fake-temp"
 _fake_temp.mkdir()
@@ -79,26 +79,26 @@ check("failed marker reported once, then deleted (silent on 2nd start)",
       bool(_first) and not _marker.exists() and _second == "",
       "first=%r second=%r marker=%s" % (_first, _second, _marker.exists()))
 
-# ---- 0b) C-2（paths 1.1.4，MUST-WIRE）：真语义 —— dev 态必须**不取句柄**且**说明原因** --
+# ---- 0b) paths 1.1.4（MUST-WIRE）：真语义 —— dev 态必须**不取句柄**且**说明原因** --
 # 量的是模板件本身（跑在打桩之前，不是替身）。dev 态下"本实例"是 python.exe，给它加
 # "不可删除"既无意义、又会让开发机的 Python 升级莫名失败；而**沉默地跳过**会让下一个人
 # 以为保护生效了——所以理由必须落进日志。
 _dev_log = []
 _dev_ret = M.paths.hold_exe_delete_guard(log=_dev_log.append)
-check("C-2 guard is a no-op in dev mode and says why (never silent)",
+check("exe-delete-guard is a no-op in dev mode and says why (never silent)",
       _dev_ret is False and any("dev mode" in str(m) for m in _dev_log),
       "ret=%r log=%r" % (_dev_ret, _dev_log))
 
 
 # ---- 1) 启动骨架：跑真正的 main()，重资源换替身 ------------------------------
 CALLS = {"autostart": 0, "scans": 0, "probes": 0, "monitors": 0}
-ORDER = []          # T4 两条接线的调用顺序
+ORDER = []          # update_helper 两条接线的调用顺序
 NOTIFIES = []       # 托盘实际发出的文案
 
 
 class _Icon:
     def __init__(self, *a, **k):
-        ORDER.append("tray")      # 托盘创建这个**时点**要可见（C-2 的顺序断言要用）
+        ORDER.append("tray")      # 托盘创建这个**时点**要可见（exe-delete-guard 的顺序断言要用）
         self.menu = k.get("menu")
 
     def run(self, setup=None):
@@ -124,7 +124,7 @@ def _started(key):
 M.tray_kit.acquire_single_instance = lambda *_a, **_k: True
 M.tray_kit.warn_duplicate_instance = lambda *_a, **_k: None
 M.pystray.Icon = _Icon
-# C-2（paths 1.1.4 MUST-WIRE）：守卫必须在**托盘创建之前**被调用——顺序就是那条契约
+# paths 1.1.4（MUST-WIRE）：守卫必须在**托盘创建之前**被调用——顺序就是那条契约
 # 本身（README：晚一步，那一步的窗口期就没有保护）。替身签名**照抄生产**
 # （`hold_exe_delete_guard(log=print)`）；写成 `lambda *a, **k` 会连"传错参数"也收下。
 M.paths.hold_exe_delete_guard = lambda log=print: ORDER.append("guard") or True
@@ -135,7 +135,7 @@ M.monitor_loop = _started("monitors")
 M.ocx_monitor_loop = _started("monitors")
 M.ocx_health = lambda: {"ok": False, "port": None, "safety": None}
 M.update_helper.check_update = lambda version, force=False: {"newer": False, "latest": "", "current": version}
-# T4 接线：清 TEMP 残包 + 取上次失败 marker。返回中文串（模板件），工具只用它的真值。
+# update_helper 接线：清 TEMP 残包 + 取上次失败 marker。返回中文串（模板件），工具只用它的真值。
 # 替身签名**照抄生产实现**（J 坑：替身比生产宽容 = 制造假绿）。生产是
 # `sweep_stale_update_dirs(max_age=3600.0)` 与 `pop_failed_update_note(update_dir, log=...)`；
 # 写成 `lambda *a, **k` 会连"传错参数"一起收下，等于把契约错误盖住。宁严勿宽。
@@ -162,7 +162,7 @@ check("log written inside the isolated data dir", str(LOG_PATH).startswith(_TMP)
       str(LOG_PATH))
 
 # 程序本体目录只有一个来源（paths.APP_DIR）：main.py 曾自行再派生一份（开发态 = src/），
-# 冻结态碰巧重合所以从未暴露；dev 下 PLINK_PATH 取不到。§B1 dev 态锚定纪律要求路径断言
+# 冻结态碰巧重合所以从未暴露；dev 下 PLINK_PATH 取不到。§目录结构 dev 态锚定纪律要求路径断言
 # 落在测试里，而不是靠人记得。
 from template.paths import APP_DIR as _PATHS_APP_DIR  # noqa: E402
 check("APP_DIR has a single source (paths, not a local re-derivation)",
@@ -170,7 +170,7 @@ check("APP_DIR has a single source (paths, not a local re-derivation)",
 check("plink resolves in dev mode", Path(M.PLINK_PATH).is_file(), str(M.PLINK_PATH))
 
 # ---- 真 marker 端到端（上面那条用的是替身，这里把它换回真函数）--------------
-# 2026-09-19：这一跑当场抓到 `log` 契约冲突 —— 模板 update_helper 按 print 形态调用
+# `log` 契约冲突 —— 模板 update_helper 按 print 形态调用
 # `log("previous update failed:", detail)`，而工具的 log 只收一个参数 ⇒ 只要失败 marker
 # 存在，启动就 TypeError。替身永远测不出来，必须真跑一次。
 from template.update_helper.update_helper import failed_marker_path  # noqa: E402

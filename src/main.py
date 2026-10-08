@@ -31,16 +31,16 @@ import pystray
 from PIL import Image, ImageDraw
 
 from template import autostart, i18n, log_kit, paths, tray_icons, tray_kit, update_helper   # noqa: E402
-from template.service_link import service_link   # noqa: E402  W7：服务编排（boot ensure）
-from template.tunnel_kit import tunnel_kit   # noqa: E402  W7：Decision 10 参数正本 + 自愈语义
+from template.service_link import service_link   # noqa: E402  ：服务编排（boot ensure）
+from template.tunnel_kit import tunnel_kit   # noqa: E402  ：参数正本 + 自愈语义
 from template.appconfig import APP_ID   # noqa: E402
 from template.paths import APP_DIR, CONFIG_PATH, LOG_DIR, UPDATE_DIR, USER_DATA_DIR   # noqa: E402
 
-# 程序本体目录**不在本文件派生**：唯一出处是 T2 paths 的 APP_DIR（打包后 = exe 所在
-# 目录，开发态 = 仓库根）。这里曾另有一份同名派生量（开发态 = src/），与 paths 分叉，
+# 程序本体目录**不在本文件派生**：唯一出处是模板件 paths 的 APP_DIR（打包后 = exe 所在
+# 目录，开发态 = 仓库根）。这里曾另有一份同名派生量（开发态 = src），与 paths 分叉，
 # 只在冻结态碰巧重合——于是 dev 下 PLINK_PATH 解析成 src/bin/plink.exe 取不到，
 # 而构建与冒烟全绿。
-# 用户数据区/配置/日志/更新暂存同样出自 T2 paths（数据区住 LOCALAPPDATA，
+# 用户数据区/配置/日志/更新暂存同样出自模板件 paths（数据区住 LOCALAPPDATA，
 # 1.0 及以前的 exe 旁旧配置由播种自动迁入）。
 SSH_KEYGEN = r"C:\Windows\System32\OpenSSH\ssh-keygen.exe"
 
@@ -75,7 +75,7 @@ DEFAULT_CONFIG = {
 }
 
 LOG_DIR.mkdir(parents=True, exist_ok=True)
-_logger = log_kit.get_logger(LOG_DIR)   # T12：滚动 1MB×3（house 标准 D13）
+_logger = log_kit.get_logger(LOG_DIR)   # 滚动 1MB×3
 
 
 def _log(*parts):
@@ -90,7 +90,7 @@ def _log(*parts):
 
 # ---------------- 配置 ----------------
 def load_config():
-    paths.seed_config()   # T2：exe 旁旧配置一次性迁入用户数据区
+    paths.seed_config()   # exe 旁旧配置一次性迁入用户数据区
     cfg = {}
     if CONFIG_PATH.exists():
         try:
@@ -122,7 +122,7 @@ def load_config():
     return merged
 
 CFG = load_config()
-# T5：语言在配置读取之后、任何 t() 之前初始化（auto 跟随 Windows UI 语言）。
+# 语言在配置读取之后、任何 t() 之前初始化（auto 跟随 Windows UI 语言）。
 i18n.init(i18n.load_language_from_config(CONFIG_PATH))
 
 def save_config():
@@ -170,7 +170,7 @@ def ssh_args(t, extra=None):
 
 
 def _key_tunnel_cmd(t):
-    """密钥型隧道长连接命令行（W7）：认证段（本工具）+ Decision 10 参数段与 -R 段（tunnel_kit 正本）。
+    """密钥型隧道长连接命令行：认证段（本工具）+ 参数段与 -R 段（tunnel_kit 正本）。
 
     keepalive 三参 + ExitOnForwardFailure 自模板 DEFAULTS（appconfig 可调的锚点在
     tunnel_kit；本工具暂用默认值，后续需要再进 config）。
@@ -197,7 +197,7 @@ _state = {}          # target_key -> bool（隧道连接状态）
 _token_status = {}   # target_key -> True/False/None
 _tunnel_procs = {}   # target_key -> Popen
 _pw_cache = {}       # target_key -> 密码（仅内存）
-# W7 自愈（Decision 10）：连续失败确认计数 + 退避门（下次允许重连的时刻）
+# 自愈：连续失败确认计数 + 退避门（下次允许重连的时刻）
 _heal = {}           # target_key -> {"streak": int, "next_retry": float}
 _lock = threading.Lock()
 
@@ -211,7 +211,7 @@ def ensure_target_healed(t):
     """监控循环里调：probe 失败连续 confirm_n 次 → 退避门后重连（幂等 start_target）。
 
     返回 None（纯副作用函数）：状态写 _state、日志走 _log；密码型/退避未到 → 只计数不动手。
-    退避为 D10 完整序列（N1 修复，09-29）：30s 起步 → 每次失败重连 ×2 → 600s 封顶 →
+    退避为 完整序列（修复，09-29）：30s 起步 → 每次失败重连 ×2 → 600s 封顶 →
     成功即复位（probe 恢复时 monitor_loop 清 streak 处同步复位）。
     """
     key = target_key(t)
@@ -250,7 +250,7 @@ def enabled_count():
 
 # ---------------- 探测 / 令牌扫描 ----------------
 def probe_target(t):
-    """探测目标隧道是否健康。**失败方向 = 放行**（#45 / STANDARDS §D3.2）。
+    """探测目标隧道是否健康。**失败方向 = 放行**。
 
     返回值被用来决定 `kill_target_procs`（**杀用户正在用的那条隧道**），所以
     "探测**自身**出错"（ssh 不存在、超时、属性缺失）**不得**与"确定不健康"折叠成同一个
@@ -273,7 +273,7 @@ def probe_target(t):
             if r.returncode == 0 and '"service":"opencodex"' in r.stdout:
                 return True
         except Exception as exc:
-            _log(f"probe {t['name']}: ssh probe errored ({exc}) -> fail-open (not judged unhealthy, #45)")
+            _log(f"probe {t['name']}: ssh probe errored ({exc}) -> fail-open (not judged unhealthy)")
             return True
     pw = _pw_cache.get(key)
     if pw and PLINK_PATH.exists():
@@ -283,7 +283,7 @@ def probe_target(t):
             if r.returncode == 0 and '"service":"opencodex"' in r.stdout:
                 return True
         except Exception as exc:
-            _log(f"probe {t['name']}: plink probe errored ({exc}) -> fail-open (not judged unhealthy, #45)")
+            _log(f"probe {t['name']}: plink probe errored ({exc}) -> fail-open (not judged unhealthy)")
             return True
     return False
 
@@ -361,7 +361,7 @@ def start_target(t):
             _log(f"start target {t['name']}: password required, cancelled")
             return False, i18n.t("tgt_need_password", t["name"])
         _pw_cache[key] = pw
-    # #45 ①：清理陈旧隧道必须排在"确定要启动"**之后**。放在前面时，用户在口令框上
+    # 清理陈旧隧道必须排在"确定要启动"**之后**。放在前面时，用户在口令框上
     # 按取消 → 我们一条隧道都没起，却已经把**用户正在用的那条**杀掉了 —— "我起不来
     # 却先动手拆"。这一格今天不影响本机（密钥可用 ⇒ probe 为真 ⇒ 上面就早退了），
     # 但口令型目标冷启动必然走到这里。
@@ -635,7 +635,7 @@ def on_delete_target(icon, item):
             root.destroy()
             return t if ok else None
 
-        t = ui_post(_ask)    # 选目标 + 确认框都在 Tk 线程上跑（E1-03/I-03）
+        t = ui_post(_ask)    # 选目标 + 确认框都在 Tk 线程上跑（落地·入口骨架）
         if not t:
             return
         kill_target_procs(t)
@@ -701,14 +701,14 @@ def on_toggle_autostart(icon, item):
     refresh_icon(icon)
 
 def on_toggle_tunnels_on_start(icon, item):
-    """☑服务就绪后启动隧道（蓝本第 5 段）：W7 boot 编排的开关化，默认 True=原行为。"""
+    """☑服务就绪后启动隧道（蓝本第 5 段）：boot 编排的开关化，默认 True=原行为。"""
     CFG["start_tunnels_with_service"] = not bool(CFG.get("start_tunnels_with_service", True))
     save_config()
     _log(f"start_tunnels_with_service -> {CFG['start_tunnels_with_service']}")
     refresh_icon(icon)
 
 def on_toggle_language(icon, item):
-    """中英切换（T1）：改语言 → 持久化 → 显式重建菜单（D14）。"""
+    """中英切换：改语言 → 持久化 → 显式重建菜单。"""
     new_lang = "en" if i18n.current_lang() == "zh" else "zh"
     i18n.init(new_lang)
     i18n.save_language_to_config(CONFIG_PATH, new_lang)
@@ -736,18 +736,18 @@ def on_quit(icon, item):
     def _decide_quit():
         """退出确认裁决 → (proceed, stop_service)。**三态必须分开**。
 
-        2026-09-19 缺陷：链路不可用（None）与用户明确取消（{"go": False}）共用一个
+        缺陷形态：链路不可用（None）与用户明确取消（{"go": False}）共用一个
         `return`，于是弹窗一坏用户就被锁死在工具里——ocx 1.2.2 实证：_internal 目录
         被掏空、Tk 读不到 init.tcl，点「退出」静默无反应，只能用任务管理器。
         「不可用 ⇒ 放行」不等于「默认 True」：确认框本身没被拆掉，问到就一定听用户的。
         """
         try:
             def _persist_quit_stop(value: bool) -> None:
-                # G4.2 条款 5（2026-09-18 用户定）：勾选一变即持久化，不等「退出」点击
+                # G4.2 条款 5：勾选一变即持久化，不等「退出」点击
                 CFG["quit_stop_tunnels"] = bool(value)
                 save_config()
 
-            # 确认框要建 Tk 根 → 封送到唯一的 Tk 线程（E1-03/I-03）。
+            # 确认框要建 Tk 根 → 封送到唯一的 Tk 线程（落地·入口骨架）。
             # 降级链两级都在里面跑：富对话框失败就走原生 askyesno（同样在那一个线程上）。
             def _confirm():
                 try:
@@ -797,14 +797,14 @@ def on_quit(icon, item):
             kill_target_procs(t)
     else:
         # G4.2 **条款 5**：不勾选 = 服务与隧道**越过托盘生命周期继续运行**（明文）。
-        # ⚠ 旧实现（至 1.2.1）在这里 terminate 了**所有 OWNED 句柄** ⇒ 用户报告
-        #   （2026-09-20）："没选关闭隧道，结果也关了"。
+        # ⚠ 旧实现（至 1.2.1）在这里 terminate 了**所有 OWNED 句柄** ⇒ 用户报告：
+        #   "没选关闭隧道，结果也关了"。
         # 根因是**把条款 3 的"作用域规则"当成了"触发条件"**：
         #   · 条款 5 管「**要不要**清理」——由本勾选框决定（默认不勾 ⇒ 不清）；
         #   · 条款 3 管「**清理谁**」——作用域 = 接入实例、禁全量签名击杀（不勾时根本用不上）。
         # 两者分工，不可互推。OWNED 隧道同样是"服务越过托盘继续运行"的一种（条款 4：
         # 放行是合法状态，不是泄漏），下次启动由探测自动重新接入。
-        _log("quit: tunnels keep running (checkbox not ticked, G4.2-5); "
+        _log("quit: tunnels keep running (checkbox not ticked); "
              "owned handles released with this process")
     icon.stop()
     if PENDING_UPDATE_CMD:
@@ -816,23 +816,23 @@ def on_quit(icon, item):
             _log("quit: pending update script was NOT launched")
 
 # ---------------- 托盘 / 菜单 ----------------
-# E2-09：签名重画 + 菜单占用探测。旧形态每处状态变更都无条件 icon.update_menu()，
+#签名重画 + 菜单占用探测。旧形态每处状态变更都无条件 icon.update_menu()，
 # 而 pystray 的重建是 DestroyMenu + CreatePopupMenu：菜单正开着时重建 = 把它从用户
 # 手底下抽走（鼠标滑着滑着突然失焦）。改成：状态提成签名 → 只有签名变了才重建 →
 # 菜单开着时推迟，由 1.5s 补画拍补上。
-# menu_is_open 探测器已随 tray_kit 2.3.0 下沉模板（W7 Decision 9），此处不再内联。
+# menu_is_open 探测器已随 tray_kit 2.3.0 下沉模板，此处不再内联。
 _TRAY_ICON = None
 
 
 def _menu_signature():
-    """菜单上会「显示出来」的全部状态：只有它变了才值得重建（E2-09/§D6）。
+    """菜单上会「显示出来」的全部状态：只有它变了才值得重建（§状态唯一写入点）。
 
     **漏一项 = 那一项变了菜单不刷新**。逐项对照 build_menu()：
       · 隧道信息行 status_line() ← 每个目标的（key / 名字 / 地址 / 启用 / 连通 / 令牌）
       · opencodex 在线行与安全行 ← _ocx_state
       · 「下载并更新」的 enabled ← LATEST_VERSION
       · 自启的 checked ← 注册表
-      · ☑随启动隧道的 checked ← CFG（W8-A）
+      · ☑随启动隧道的 checked ← CFG
       · 探测间隔子菜单的 checked ← CFG
       · 全部菜单文案 ← i18n.current_lang()
     目标的 name/host 也在签名里——改名或改地址同样要让菜单重画。
@@ -888,7 +888,7 @@ def menu_refresh_loop():
             _log(f"menu refresh failed: {exc}")
 
 
-# ---- E1-03 / I-03：UI 队列封送 -------------------------------------------------
+# ---- / 落地·入口骨架：UI 队列封送 -------------------------------------------------
 # tkinter 不是线程安全的，而本工具的对话框是在 threading.Thread 里弹的（为了不让托盘
 # 在等用户操作时失去响应）。此前那等于**在工作线程里建/毁一个 Tk 解释器**——换一个
 # CPython/_tkinter 构建就可能崩，任何跨线程共享都会踩解释器状态。
@@ -907,7 +907,7 @@ def ui_thread_loop():
 
 
 def ui_post(fn):
-    """把 UI 工作封送到唯一的 Tk 线程执行，阻塞取回结果（E1-03/I-03）。
+    """把 UI 工作封送到唯一的 Tk 线程执行，阻塞取回结果（落地·入口骨架）。
 
     线程**按需启动**：不经过 main() 的路径（测试、诊断）若只 put 不执行会永久卡在
     done.wait()。已在 Tk 线程上时直接跑，避免自己投的活自己等。
@@ -956,10 +956,10 @@ def monitor_loop(icon):
             if ok:
                 if h:
                     h["streak"] = 0
-                    # N1：探测恢复 = 链路健康，退避同步复位（D10 成功复位语义）
+                    # ：探测恢复 = 链路健康，退避同步复位（成功复位语义）
                     h["backoff"] = tunnel_kit.DEFAULTS["backoff_start_s"]
             else:
-                # W7 自愈（F4 缺口补全）：连续失败确认后自动重连（密钥型 + 退避）
+                # 自愈（F4 缺口补全）：连续失败确认后自动重连（密钥型 + 退避）
                 ensure_target_healed(t)
             with _lock:
                 prev = _state.get(key, False)
@@ -1058,9 +1058,9 @@ def download_update_menu(_icon=None, _item=None):
 
 
 def build_menu():
-    """house 标准八段式（执行文档 D14）：信息 → 更新 → 默认入口 → 服务控制 → 业务 → 打开 → 偏好 → 退出。
+    """家族标准八段式：信息 → 更新 → 默认入口 → 服务控制 → 业务 → 打开 → 偏好 → 退出。
 
-    W8-A 按用户蓝本（旧版 reme 菜单截图）对齐 ssh 目标组形态：目标子菜单、启动/停止
+    按用户蓝本（旧版 reme 菜单截图）对齐 ssh 目标组形态：目标子菜单、启动/停止
     全部、☑服务就绪后启动隧道**同组紧贴**（蓝本第 5 段）；ocx 本体启停归位服务控制
     段（蓝本第 4 段启停组位），不再拆成两段。
     """
@@ -1106,7 +1106,7 @@ def build_menu():
     )
 
 # ---------------- 开机自启 / ocx ----------------
-# 自启三件套（含稳定位指向与启动自愈）全部来自 T3 模板件 template/autostart。
+# 自启三件套（含稳定位指向与启动自愈）全部来自模板件 template/autostart。
 # 注册表键名 = appconfig.APP_NAME（"opencodex-helper"，与历史键一致，换名=断链）。
 
 def opencodex_home_dir():
@@ -1280,16 +1280,16 @@ def ocx_monitor_loop(icon):
             pass
 
 # ---------------- main ----------------
-# 单实例：命名互斥体（T7 tray_kit；名字不含版本号，跨版本互拦）
+# 单实例：命名互斥体（tray_kit；名字不含版本号，跨版本互拦）
 
 
 def smoke():
-    """冻结冒烟（D3-01 旁路）：**不抢互斥体、不写注册表、不启动托盘**。
+    """冻结冒烟（工程·smoke不绕行 旁路）：**不抢互斥体、不写注册表、不启动托盘**。
 
     必须在 main() 的 acquire_single_instance 之前调用——否则用户常驻实例在跑时
     冒烟会拿不到互斥体，转而走重复启动提示（模态 MessageBox，会把构建挂死）。
     """
-    # D3.1 / C-10 守卫覆盖探针：名字合法性（不占锁、不弹窗），须与运行期守卫同名。
+    # D3.1 / 判据·smoke不绕 守卫覆盖探针：名字合法性（不占锁、不弹窗），须与运行期守卫同名。
     if not tray_kit.mutex_name_is_valid(APP_ID):
         print("FAIL mutex name is illegal for %s" % APP_ID)
         return 1
@@ -1321,16 +1321,16 @@ def main():
             message="\n\n".join([i18n.t("dup_running"),
                                   i18n.t("dup_hint")]))
         return 0
-    # C-38：锚是「第一个字符串实参以 `startup` 开头的 log 行」—— 原来这里是 `starting`，
+    # 判据·启动自证：锚是「第一个字符串实参以 `startup` 开头的 log 行」—— 原来这里是 `starting`，
     # 所以判据报「锚 0 处」（**缺启动标记本身就是缺口**：第一次/第二次启动都无法归属）。
     # 统一用 §4.1.38 的正本措辞，并紧跟两行解析后的数据根与配置路径。
     _log(f"startup {APP_NAME} v{VERSION} (pid {os.getpid()})")
     _log("data root: %s" % USER_DATA_DIR)
     _log("config   : %s" % CONFIG_PATH)
-    # T2/C-2（paths 1.1.4，MUST-WIRE）：让"本实例的 exe 不可被删除/改名"由**内核**保证，
+    # paths 1.1.4（MUST-WIRE）：让"本实例的 exe 不可被删除/改名"由**内核**保证，
     # 而不是由纪律保证。持有的是一个**不含 FILE_SHARE_DELETE** 的句柄 ⇒ 删除方（构建脚本 /
     # 手工 `rm -r` / 未来的 --clean）会**大声失败**，而不是把正在运行的实例目录静默掏空
-    # （2026-09-19 事故的形态：实例仍在其中运行时 release\<工具>-<版本>\ 被掏空）。
+    # （实例仍在其中运行时 release\<工具>-<版本>\ 被掏空）。
     # 必须在**托盘创建之前**调用——晚一步，那一步的窗口期就没有保护；句柄持有到进程结束
     # （故意不 close，寿命就是进程寿命）；拿不到只记一行日志，绝不拦住启动（D3.2）；
     # dev 态由模板自己跳过（保护 python.exe 无意义）。
@@ -1338,23 +1338,23 @@ def main():
 
     # G4.1 条款 3/5：启动自愈——存量 Run 键指向的 exe 已消失（换版本目录被删）时，
     # 静默重写到当前正确位置（优先稳定安装位 INSTALL_EXE，见 template/autostart）。
-    # 放在 --smoke 早退之后：冒烟是只读检查，不得改写用户真实注册表（D3-03）。
+    # 放在 --smoke 早退之后：冒烟是只读检查，不得改写用户真实注册表（工程·测试只读）。
     autostart.migrate_autostart(log=_log)
-    # T4 收尾：更新脚本在托盘退出后才跑，要是被打断（重启/被杀/半路消失），那份解压好的
+    # 更新脚本在托盘退出后才跑，要是被打断（重启/被杀/半路消失），那份解压好的
     # 整包（实测 ~50MB/次）就烂在 %TEMP% 里没人知道——启动扫一次。只清一小时前的：
     # 正在进行的更新，其暂存目录是刚建的。清扫失败不抛，拦不住启动。
     swept = update_helper.sweep_stale_update_dirs()
     if swept:
         _log(f"update housekeeping: swept {swept} stale update dir(s) from TEMP")
-    # T4 收尾：上次更新失败的通知也只能等下次启动说（更新脚本自删了）。marker 读一次即删，
+    # 上次更新失败的通知也只能等下次启动说（更新脚本自删了）。marker 读一次即删，
     # 所以先取出来；图标还没 run、通知发不出去，先留在闭包里，到 setup 回调再发。
     # 模板返回的是中文人话串（详情它已自己写进 update.log），这里只取"失败过"这个事实，
-    # 文案走 i18n，否则英文界面会弹出一句中文（T1 回归）。
+    # 文案走 i18n，否则英文界面会弹出一句中文（中英双语 i18n 回归）。
     failed_note = update_helper.pop_failed_update_note(UPDATE_DIR, log=_log)
 
     threading.Thread(target=scan_all_tokens, daemon=True).start()
     threading.Thread(target=initial_probe_all, daemon=True).start()
-    # W7 boot 编排（用户需求：工具启动→拉服务→就绪后起隧道）：
+    # boot 编排（用户需求：工具启动→拉服务→就绪后起隧道）：
     # service_link.ensure_running 一次性收敛（已在跑→收养；没跑→启动+等就绪），
     # on_ready 后逐 enabled 目标起隧道（幂等 start_target，密码型缺令牌会引导输入）。
     def _boot_orchestrate():
@@ -1373,7 +1373,7 @@ def main():
             launch=_launch_ocx,
             terminate=lambda h: run_ocx(["stop"], 60),
             log=_log)
-        # W8-A：☑「服务就绪后启动隧道」的 gate（蓝本第 5 段）。默认 True=boot 编排原行为。
+        #☑「服务就绪后启动隧道」的 gate（蓝本第 5 段）。默认 True=boot 编排原行为。
         if CFG.get("start_tunnels_with_service", True):
             ocx_service.on_ready(_start_tunnels)
         ok, msg = ocx_service.ensure_running(timeout=90.0)
@@ -1401,7 +1401,7 @@ def main():
     _TRAY_ICON = icon   # MenuSignature 的重建动作要用（状态变更处只调 refresh_icon）
     threading.Thread(target=monitor_loop, args=(icon,), daemon=True).start()
     threading.Thread(target=ocx_monitor_loop, args=(icon,), daemon=True).start()
-    # E2-09 第②拍：菜单开着时被推迟的重画在这里补上（探针间隔最长 30 分钟，不能靠它）。
+    # 第②拍：菜单开着时被推迟的重画在这里补上（探针间隔最长 30 分钟，不能靠它）。
     threading.Thread(target=menu_refresh_loop, name="ocx-menu-refresh", daemon=True).start()
 
     def _setup_tray(_icon):
@@ -1419,7 +1419,7 @@ def main():
     return 0
 
 def lang_audit():
-    """T5/T1 自检（--lang-audit）：静态扫描本文件里未进 zh 词表的中文串。
+    """--lang-audit／中英双语 i18n 自检：静态扫描本文件里未进 zh 词表的中文串。
 
     只查字面量（docstring 除外），命中即列出行号；退出码非 0 = 有遗漏。
     数据/标识符本就不该进词表，故只在 src/main.py 上跑。

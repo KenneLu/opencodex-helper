@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-"""UI 队列封送（CONFORMANCE E1-03 / I-03）。
+"""UI 队列封送。
 
 tkinter 不是线程安全的，而对话框是在工作线程里弹的（为了不阻塞托盘）。封送把
 **所有 Tk 工作收进同一个常驻线程**：跨线程只传「队列里的一个可调用对象」。
 
-回归背景（2026-09-19 实测踩到）：第一版 `ui_post()` 只 put 不保证有人在消费——
+回归背景：第一版 `ui_post()` 只 put 不保证有人在消费——
 线程由 main() 启动，而测试/诊断路径不经过 main()，于是 `test_update_chain` 直接调
 `quit_menu()` 时**永久卡在 done.wait()**（测试挂死，比失败更糟）。所以这里专门钉两条：
   ① 没经过 main() 也必须能跑（线程按需懒启动）；
   ② 已经在 Tk 线程上时直接跑（否则自己投的活自己等 = 自锁）。
 
-实例隔离（F11/D12）：import main 之前重定向数据根。
+实例隔离：import main 之前重定向数据根。
 """
 import os
 import shutil
@@ -18,7 +18,7 @@ import sys
 import tempfile
 import threading
 from pathlib import Path
-from _cleanup import rmtree_cleanup, scratch_dir  # noqa: E402  （R2 位置 + 删前放句柄）
+from _cleanup import rmtree_cleanup, scratch_dir  # noqa: E402
 
 _TMP = scratch_dir("ocx-ui-test-")
 os.environ["OPENCODEX_HELPER_DATA_DIR"] = _TMP
