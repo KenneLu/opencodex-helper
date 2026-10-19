@@ -39,7 +39,16 @@ Launch `release\opencodex-helper-<version>\opencodex-helper.exe`; a tray icon ap
 | Language / 语言 | Switches the whole UI between Chinese and English; saved to `config.json` and applied immediately (menu rebuilt) |
 | Quit | Asks for confirmation; stopping the tunnels is a persisted checkbox (default off) |
 
-Icon color: **green when at least one enabled target is connected; grey otherwise**. Refreshed immediately after manual actions; passive state flips found by polling raise a Windows notification.
+Icon state: the tray icon combines **opencodex service health × any enabled tunnel connected** (four states). The yellow badge means "tunnel link is alive" and is independent of service health.
+
+| Icon | Service healthy | Tunnel connected | Meaning |
+|---|---|---|---|
+| Grey | no | no | Not connected: the helper is up, the service is not, and there is no tunnel |
+| Green | yes | no | The service is available (no tunnel yet) |
+| Green + yellow badge | yes | yes | The service is available and at least one tunnel is up |
+| Grey + yellow badge | no | yes | The tunnel is up but the local service is not — the badge still says "link alive" |
+
+Refreshed immediately after manual actions; passive state flips found by polling raise a Windows notification. The yellow badge can lag by up to one tunnel probe interval (600 s by default); service health is polled every 5 s.
 
 ## Authentication
 

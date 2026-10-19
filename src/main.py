@@ -58,7 +58,7 @@ def _resource_path(name):
 PLINK_PATH = _resource_path("bin/plink.exe")
 
 APP_NAME = "opencodex 助手"
-VERSION = "1.2.3"
+VERSION = "1.2.4"
 
 DEFAULT_CONFIG = {
     "targets": [],
@@ -244,6 +244,17 @@ def global_connected_count():
         if t.get("enabled", True) and _state.get(target_key(t)):
             n += 1
     return n
+
+
+def _tray_state_key(ocx_ok, tunnels):
+    """(服务健康, 任一启用隧道连通) → 贴图状态键。四态全量图，运行时只查键不画图。
+
+    键名与 reme-helper 同款：ok / ok_tunnel / down / down_tunnel。
+    黄点语义 = 隧道链路在，与服务健康正交：服务断了但隧道还在 ⇒ down_tunnel，
+    不静默成纯灰（否则用户会误以为隧道也不通）。
+    """
+    return ("ok" if ocx_ok else "down") + ("_tunnel" if tunnels else "")
+
 
 def enabled_count():
     return len(enabled_targets())
@@ -860,8 +871,10 @@ def rebuild_menu():
     if icon is None:
         return
     with _lock:
-        connected = global_connected_count() > 0
-    tray_icons.tray_icons.set_state("connected" if connected else "disconnected")
+        tunnels = global_connected_count() > 0
+    # 唯一写入点：服务健康 × 隧道连通 → 四态贴图。_menu_signature 已含 _ocx_state，
+    # 服务健康变化本来就会触发本函数重跑——图标与菜单两行文案同源同拍。
+    tray_icons.tray_icons.set_state(_tray_state_key(bool(_ocx_state.get("ok")), tunnels))
     icon.menu = build_menu()
     icon.update_menu()
 
@@ -1308,6 +1321,22 @@ def smoke():
     print(f"opencodex home: {opencodex_home_dir()}")
     h = ocx_health()
     print(f"ocx health: ok={h['ok']} port={h['port']} safety={h['safety']}")
+    # tray 资产自检（决策 6）：打印状态键，并逐态按 16 档真实加载一次——让「四态资产
+    # 随冻结包」在 smoke 里可机械证明，不靠人去看 _internal 目录。
+    from template.icons.icons import state_keys
+    icon_dirs = tray_icons.tray_icons.init()
+    keys = state_keys()
+    print(f"tray icon dirs: {[str(d) for d in icon_dirs]}")
+    print(f"tray states: {keys}")
+    bad = [k for k in keys if not any((Path(d) / k / "16.png").is_file() for d in icon_dirs)]
+    for k in keys:
+        img = tray_icons.tray_icons.get(k, 16)
+        if img.size != (16, 16):
+            bad.append(k)
+    if bad:
+        print("FAIL tray states: " + ", ".join(sorted(set(bad))))
+        return 1
+    print(f"tray frames: {len(keys)} states x 16px OK")
     print("SMOKE OK")
     return 0
 
@@ -1395,9 +1424,13 @@ def main():
     _ocx_state.update(ocx_health())
     _log(f"ocx initial health: ok={_ocx_state['ok']} port={_ocx_state['port']} safety={_ocx_state['safety']}")
     tray_icons.tray_icons.init()
-    icon = pystray.Icon("opencodex-helper", icon=tray_icons.tray_icons.get("disconnected"),
+    # 初态与运行期同源（同一个 _tray_state_key）：服务健康此刻已探测，隧道取当前 _state。
+    # 首探可能还没回 ⇒ 初态只反映服务维度，首个监控拍后纠正（与 reme 初始化一致，
+    # 不阻塞启动同步等探测）。
+    initial_state = _tray_state_key(bool(_ocx_state.get("ok")), global_connected_count() > 0)
+    icon = pystray.Icon("opencodex-helper", icon=tray_icons.tray_icons.get(initial_state),
                         title=f'{i18n.t("app_name")} v{VERSION}', menu=build_menu())
-    tray_icons.tray_icons.bind(icon, "disconnected")
+    tray_icons.tray_icons.bind(icon, initial_state)
     _TRAY_ICON = icon   # MenuSignature 的重建动作要用（状态变更处只调 refresh_icon）
     threading.Thread(target=monitor_loop, args=(icon,), daemon=True).start()
     threading.Thread(target=ocx_monitor_loop, args=(icon,), daemon=True).start()
