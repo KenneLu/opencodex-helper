@@ -102,5 +102,14 @@
   "dup_hint": "请看任务栏右下角通知区域里的图标，本次启动已取消，不会多开一个托盘。",
   "quit_confirm_yes": "退出",
   "quit_confirm_no": "取消",
-  "dup_running": "opencodex-helper 已经在运行了。"
+  "dup_running": "opencodex-helper 已经在运行了。",
+  "notify_already_running": "opencodex 助手已在运行（请看托盘图标）",
+  "startup_failure_title": "opencodex 助手 启动失败",
+  "startup_failed_headline": "程序启动失败：%s",
+  "tray_failed_headline": "无法创建系统托盘图标（拒绝访问）。",
+  "tray_failed_reason": "常见原因：程序从受限终端 / 沙箱 / 远程会话启动，或系统托盘暂不可用。",
+  "tray_failed_hint_explorer": "请从 Windows 文件资源管理器直接双击本程序启动；",
+  "tray_failed_hint_restart": "若仍失败，请重启资源管理器或电脑后重试。",
+  "log_dir_unwritable_note": "日志目录也不可写（可能被受限环境启动），本次没有写出日志文件。",
+  "failure_detail_hint": "详细信息（可复制发给维护者）："
 }

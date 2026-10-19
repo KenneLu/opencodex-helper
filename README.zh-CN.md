@@ -1,4 +1,4 @@
-# opencodex 助手（opencodex-helper）v1.2.1
+# opencodex 助手（opencodex-helper）v1.2.5
 
 [English](README.md) | **简体中文**
 
@@ -9,8 +9,9 @@ Windows 托盘工具：把**多台 VM 的 127.0.0.1:10100** 转发到**本机 op
 - **中英双语界面**：托盘菜单、通知、对话框（增删改目标、密码输入、生成令牌）、状态行与服务/错误信息全部走家族模板件 `template/i18n`，`locales/zh.json` 为基准表、`locales/en.json` 缺失键回退中文。偏好区新增 **「语言 / Language」** 项，一键切换并写入 `config.json` 的 `language`（默认 `auto`＝跟随 Windows UI 语言），切换后**立即重建菜单**。目标名/主机、端口、opencodex 服务名等数据不翻译。
 - **开机自启（G4.1）**：内联注册表代码改为家族模板件 `template/autostart`。打包态优先指向稳定安装位（`%LOCALAPPDATA%\opencodex-helper\app\opencodex-helper.exe`，存在时），否则退回当前 exe；每次启动执行 `migrate_autostart()`，把指向"已消失的 exe"的 Run 键静默修回——**本机已实测**：原键指向已被删除的 `out\...\opencodex-helper-pkg-20260822-164631246\opencodex-helper-1.0.exe`，修复版首次启动后即被改写为存在的 release 路径。若注册表里根本没有这个值，则不会写任何东西——工具绝不自行新增自启项。
 - **模板件改走 git submodule 借条（不再本地拷贝）**：`src/template/` 下的拷贝已摘除，改为钉住 `diy-tool-kit` 的 submodule 借条，家族模块（appconfig、autostart、i18n、icons、log_kit、paths、service_link、tray_icons、tray_kit、tunnel_kit、update_helper）只有一份来源。工具差异参数（含两个图标绘制函数 `ICON_DRAW`、`ICON_STATE_ARTISTS`）1:1 收敛到工具自持的参数卡 `src/app_params.py`，由 `template.appconfig` 运行时导入覆盖；`VERSION` 仍是 `src/main.py` 单一事实源。`build.bat` 删除随拷贝模式退休的 `conformance_check.py` 临时泄漏门禁、保留 `sync_check.py` 借条检查；两个 CI workflow 的 checkout 改为 `submodules: recursive`。
+- **受限环境加固（1.2.5）**：三条过去会以 PyInstaller 英文 traceback 现身的启动路径，现在要么 fail-open、要么可读。（a）**日志初始化 fail-open**：数据区建不出来、或日志文件打不开（被运行中实例占住 / AppData 只读 / 沙箱）时，模块级日志退化为无操作闭包，stderr 打 `log init failed: …`，启动继续——数据区播种步骤同样套用这条原则。（b）**重复启动静默化**：不再弹模态框，第二个实例把 `show.request` 写进用户数据区（对齐家族 `quit.request` 的请求文件约定）后静默退出 0；常驻实例消费它 → 托盘气泡「已在运行」。（c）**托盘创建失败可读化**：`TRAY_ICON.run()` 抛异常时（典型：受限终端 / 沙箱 / 远程会话里托盘窗口被拒绝），写 best-effort 崩溃日志、弹 `MessageBoxW` 说明可照做的动作（从资源管理器双击启动、重启资源管理器/电脑）并附 traceback 尾部供维护者定位，退出码 2——不再裸抛 traceback。回归：`tests/test_log_failopen.py`、`tests/test_duplicate_launch.py`、`tests/test_tray_failure.py`，均挂在 `build.bat` 与 CI 上。
 
-1.1.0 起的补充能力：**在线更新**（菜单「检查助手更新 / 下载并更新助手」，启动时自动检查，zip + sha256 校验，退出托盘后自动完成替换并重启）；**数据区**迁至 `%LOCALAPPDATA%\opencodex-helper\`（旧 exe 旁配置自动迁移，日志 1MB×3 滚动）；**单实例**守护（重复启动弹提示并退出）。
+1.1.0 起的补充能力：**在线更新**（菜单「检查助手更新 / 下载并更新助手」，启动时自动检查，zip + sha256 校验，退出托盘后自动完成替换并重启）；**数据区**迁至 `%LOCALAPPDATA%\opencodex-helper\`（旧 exe 旁配置自动迁移，日志 1MB×3 滚动）；**单实例**守护（重复启动静默移交，常驻实例弹「已在运行」托盘气泡；1.2.5 以前是弹模态框）。
 
 ## 运行
 
@@ -112,5 +113,8 @@ Windows 托盘工具：把**多台 VM 的 127.0.0.1:10100** 转发到**本机 op
 - **菜单里的 🔑/🚫 显示为方块**：Windows 托盘菜单对 emoji 支持有限，属正常；功能不受影响。
 - **启动隧道需要密码**：无令牌时会弹密码框，密码仅本次会话内存缓存，退出后需重新输入。
 - **plink 首次连接**：会自动接受并缓存目标 host key（注册表），不会卡住。
+- **再次双击 exe 好像没反应**：这是预期行为——常驻实例已占着托盘。第二个实例静默退出，常驻实例弹「opencodex 助手已在运行」气泡。
+- **弹窗提示无法创建托盘图标**：程序是从受限环境（沙箱 / 远程会话 / 受限终端）启动的，Windows 拒绝创建托盘窗口。请从文件资源管理器双击 exe 启动；若仍失败，重启资源管理器或电脑。详情追加到 `%LOCALAPPDATA%\opencodex-helper\log\startup-error.log`（该目录不可写时回退程序目录或 `%TEMP%`）。
+- **没有日志文件**：日志路径不可写（被另一实例占住，或数据区受限）。工具照常运行；从控制台启动时 stderr 会打出 `log init failed: …`。
 - **opencodex 服务无法启动**：看通知里的错误尾部；再打开 opencodex 目录检查日志，或手动运行 `ocx doctor`。
 - **官方托盘如何启动**：当前工具使用服务启停/状态/目录菜单；如需官方托盘，命令行执行 `ocx tray start`。

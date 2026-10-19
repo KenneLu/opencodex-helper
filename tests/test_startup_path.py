@@ -12,6 +12,7 @@ import os
 import shutil
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 from _cleanup import rmtree_cleanup, scratch_dir  # noqa: E402
@@ -122,7 +123,6 @@ def _started(key):
 
 
 M.tray_kit.acquire_single_instance = lambda *_a, **_k: True
-M.tray_kit.warn_duplicate_instance = lambda *_a, **_k: None
 M.pystray.Icon = _Icon
 # paths 1.1.4（MUST-WIRE）：守卫必须在**托盘创建之前**被调用——顺序就是那条契约
 # 本身（README：晚一步，那一步的窗口期就没有保护）。替身签名**照抄生产**
@@ -156,6 +156,9 @@ check("initial token scan and probe started",
       CALLS["scans"] == 1 and CALLS["probes"] == 1, repr(CALLS))
 check("startup wiring order: delete-guard, sweep, failed-note, then tray",
       ORDER == ["guard", "sweep", "note", "tray"], repr(ORDER))
+check("duplicate-launch watcher started (show.request consumer)",
+      any(t.name == "ocx-show-watch" for t in threading.enumerate()),
+      str([t.name for t in threading.enumerate()]))
 check("failed-update note is surfaced through the i18n table",
       NOTIFIES == [M.i18n.t("notify_update_failed_prev")], repr(NOTIFIES))
 check("log written inside the isolated data dir", str(LOG_PATH).startswith(_TMP),

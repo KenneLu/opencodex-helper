@@ -102,5 +102,14 @@
   "dup_hint": "See the icon in the notification area; this launch was cancelled and no second tray was opened.",
   "quit_confirm_yes": "Quit",
   "quit_confirm_no": "Cancel",
-  "dup_running": "opencodex-helper is already running."
+  "dup_running": "opencodex-helper is already running.",
+  "notify_already_running": "opencodex helper is already running (see the tray icon)",
+  "startup_failure_title": "opencodex helper failed to start",
+  "startup_failed_headline": "The program failed to start: %s",
+  "tray_failed_headline": "Could not create the system tray icon (access denied).",
+  "tray_failed_reason": "Common causes: the program was started from a restricted terminal / sandbox / remote session, or the system tray is currently unavailable.",
+  "tray_failed_hint_explorer": "Please start the program by double-clicking it in Windows File Explorer;",
+  "tray_failed_hint_restart": "if it still fails, restart Explorer or the computer and try again.",
+  "log_dir_unwritable_note": "The log folder is not writable either (the launch environment is probably restricted); no log file was written this time.",
+  "failure_detail_hint": "Details (copy them to the maintainer):"
 }

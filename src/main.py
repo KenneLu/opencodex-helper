@@ -16,8 +16,10 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
+import traceback
 import urllib.error
 import urllib.request
 import webbrowser
@@ -58,7 +60,7 @@ def _resource_path(name):
 PLINK_PATH = _resource_path("bin/plink.exe")
 
 APP_NAME = "opencodex 助手"
-VERSION = "1.2.4"
+VERSION = "1.2.5"
 
 DEFAULT_CONFIG = {
     "targets": [],
@@ -74,23 +76,47 @@ DEFAULT_CONFIG = {
     "quit_stop_tunnels": False,
 }
 
-LOG_DIR.mkdir(parents=True, exist_ok=True)
-_logger = log_kit.get_logger(LOG_DIR)   # 滚动 1MB×3
+# log_kit：1MB×3 滚动（模板 make_logger 内部完成 mkdir + 升级窗口回退 FileHandler）。
+# 日志初始化失败绝不能弄死主流程（log_kit 自己承诺「任何日志失败都静默」）：数据区被
+# 运行中实例/升级窗口占住，或从受限终端/沙箱启动导致 %LOCALAPPDATA% 不可写时，
+# make_logger 会抛（PermissionError / NotADirectoryError / FileExistsError）。模块级
+# 调用若把异常抛出去，PyInstaller 启动即崩、用户只看到英文 traceback——1.2.4 用户实测
+# 就是这个形态。这里退化为无操作闭包，托盘照常启动，只是这一轮没有日志文件
+# （与 reme-helper 1.2.9 同款语义；log_kit 是模板借条，兜底只在工具侧做，不改模板仓）。
+LOG_INIT_ERROR = None
 
 
-def _log(*parts):
-    """模板件的日志契约是 **print 形态**（`log("下载中", name)`），与 log_kit 的单参闭包不同。
+def _noop_log(*parts):
+    """print 形态的无操作日志：接受任意个位置参数（模板件的日志契约）。"""
+    return None
 
-    `template/update_helper` 里有 6 处多参调用；传单参的 log 进去，它们会在**真路径**上
-    TypeError —— 而命中的正是"每次下载"(L407)、"每次成功拉起替换脚本"(L257)、
-    "存在失败 marker 时"(L390) 这类必然会走到的行。opencodex 的更新链因此从来没跑通过。
-    这里按契约收任意个参数再拼接（模板 log_kit 待 tpl-keeper 统一为同一形态）。
-    """
-    _logger.info(" ".join(str(part) for part in parts))
+
+def _noop_open_log_dir():
+    return None
+
+
+try:
+    _log, open_log_dir = log_kit.make_logger(LOG_DIR)
+except Exception as exc:  # noqa: BLE001 - 日志永远不能把主流程弄死
+    LOG_INIT_ERROR = exc
+    try:
+        print("log init failed: %s" % exc, file=sys.stderr, flush=True)
+    except Exception:
+        pass
+    _log, open_log_dir = _noop_log, _noop_open_log_dir
 
 # ---------------- 配置 ----------------
 def load_config():
-    paths.seed_config()   # exe 旁旧配置一次性迁入用户数据区
+    # 数据区播种要建 USER_DATA_DIR + LOG_DIR；受限环境（沙箱/只读 AppData）或 log 路径
+    # 被占成普通文件时它会抛。配置读取本身是纯读，播种只是"首次迁移旧配置"的便利，
+    # 不能让它把启动弄死（与上面日志初始化同一条 fail-open 原则）。
+    try:
+        paths.seed_config()   # exe 旁旧配置一次性迁入用户数据区
+    except Exception as exc:  # noqa: BLE001 - 用户数据区不可建时按出厂默认跑
+        try:
+            print("user dirs seed failed: %s" % exc, file=sys.stderr, flush=True)
+        except Exception:
+            pass
     cfg = {}
     if CONFIG_PATH.exists():
         try:
@@ -739,7 +765,12 @@ def on_open_dashboard(icon, item):
     webbrowser.open(CFG["dashboard_url"])
 
 def on_open_log(icon, item):
-    os.startfile(str(LOG_DIR))  # noqa
+    # 日志目录初始化失败时模板闭包已被替换成无操作版：这里不再自己 mkdir/startfile，
+    # 否则「打开日志目录」会在同样的权限问题上再崩一次。
+    try:
+        open_log_dir()
+    except Exception as exc:
+        _log(f"open log dir failed: {exc}")
 
 def on_quit(icon, item):
     # G4.1 条款 4：退出必须过确认框；取消/关窗不退出。
@@ -1292,6 +1323,171 @@ def ocx_monitor_loop(icon):
         except Exception:
             pass
 
+# ---------------- 启动兜底：重复启动移交 / 托盘失败可读化 ----------------
+# 重复启动：第二个实例**不再弹模态框**（用户把它当报错），改为在用户数据根写一个
+# show.request 请求文件后静默退出；常驻实例的 show_watch_loop 消费它 → 删文件并弹
+# 托盘气泡「已在运行」。落点与模板 quit.request 同约定（用户数据根），但本工具没有
+# `--quit` 入口，所以这里自持路径与消费者，不改模板借条。
+def make_show_request_path(user_data_dir):
+    """`show.request` 的路径：对齐模板 `quit.request` 的落点约定（用户数据根）。"""
+    return Path(user_data_dir) / "show.request"
+
+
+SHOW_REQUEST_PATH = make_show_request_path(USER_DATA_DIR)
+
+
+def request_show_notification():
+    """重复启动时请常驻实例报个到：写 show.request，然后由调用方静默 exit 0。
+
+    写失败只落日志——一个提示不该再制造第二个错误（失败方向：少一次气泡，不拦住退出）。
+    """
+    try:
+        SHOW_REQUEST_PATH.parent.mkdir(parents=True, exist_ok=True)
+        SHOW_REQUEST_PATH.write_text(f"{os.getpid()}\n", encoding="utf-8")
+        _log("show.request written; resident instance will notify")
+        return True
+    except Exception as exc:
+        _log(f"show.request write failed: {exc}")
+        return False
+
+
+def consume_show_request():
+    """消费一次 show.request：删文件并让常驻实例弹气泡。返回是否真的消费了。"""
+    try:
+        if not SHOW_REQUEST_PATH.exists():
+            return False
+        SHOW_REQUEST_PATH.unlink()
+    except OSError as exc:
+        # 另一个实例正在写/删同一文件：下一拍再看，不刷屏、不抛
+        _log(f"show request unreadable: {exc}")
+        return False
+    _log("show requested by a duplicate launch; notifying")
+    icon = _TRAY_ICON
+    if icon is not None:
+        try:
+            icon.notify(i18n.t("notify_already_running"), i18n.t("app_name"))
+        except Exception as exc:
+            _log(f"already-running notify failed: {exc}")
+    return True
+
+
+def show_watch_loop(beat=1.0):
+    """1 秒拍消费重复启动请求（模板 quit_watch_loop 同款轮询；本工具没有 --quit）。"""
+    while True:
+        time.sleep(beat)
+        try:
+            consume_show_request()
+        except Exception as exc:
+            _log(f"show watch failed: {exc}")
+
+
+def _message_box(text, title=None):
+    """MessageBoxW 兜底；任何失败都静默（没有桌面/没有 user32 时不能反过来崩）。"""
+    try:
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(0, text, title or i18n.t("app_name"), 0x10)
+        return True
+    except Exception:
+        return False
+
+
+def _write_startup_failure_log(text):
+    """best-effort 写崩溃信息：用户数据根日志目录 → 程序目录 → %TEMP%；全失败返回 None。"""
+    candidates = [
+        LOG_DIR / "startup-error.log",
+        APP_DIR / "startup-error.log",
+        Path(tempfile.gettempdir()) / f"{APP_ID}-startup-error.log",
+    ]
+    for path in candidates:
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "a", encoding="utf-8") as fh:
+                fh.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {text}\n")
+            return path
+        except Exception:
+            continue
+    return None
+
+
+def _tray_failure_text(exc, detail):
+    """托盘创建失败 → 用户能照着做的提示（含 traceback 尾部供维护者定位）。"""
+    lines = [
+        i18n.t("tray_failed_headline"),
+        "",
+        i18n.t("tray_failed_reason"),
+        i18n.t("tray_failed_hint_explorer"),
+        i18n.t("tray_failed_hint_restart"),
+    ]
+    if LOG_INIT_ERROR is not None:
+        lines.extend(["", i18n.t("log_dir_unwritable_note")])
+    lines.extend(["", i18n.t("failure_detail_hint"), str(detail)[-1500:]])
+    return "\n".join(lines)
+
+
+def _startup_failure_text(exc, detail):
+    """其它启动期异常 → 可读提示（同样是可复制给维护者的形态）。"""
+    lines = [i18n.t("startup_failed_headline", str(exc))]
+    if LOG_INIT_ERROR is not None:
+        lines.extend(["", i18n.t("log_dir_unwritable_note")])
+    lines.extend(["", i18n.t("failure_detail_hint"), str(detail)[-1500:]])
+    return "\n".join(lines)
+
+
+def _show_startup_failure(text):
+    """启动失败的可读提示：尽力写崩溃日志 + stderr + MessageBoxW；本身绝不能抛。"""
+    try:
+        written = _write_startup_failure_log(text)
+        if written is not None:
+            _log(f"startup failure log written: {written}")
+    except Exception:
+        pass
+    try:
+        print(text, file=sys.stderr, flush=True)
+    except Exception:
+        pass
+    # 无头入口（构建/CI/诊断）不弹窗：那里没有用户可看，弹窗只会把流水线挂住。
+    if {"--smoke", "--lang-audit"}.intersection(sys.argv):
+        return
+    try:
+        _message_box(text, i18n.t("startup_failure_title"))
+    except Exception:
+        pass
+
+
+def run_tray(icon, setup=None):
+    """进托盘消息循环；托盘创建失败时转成可读提示 + 退出码 2。
+
+    典型失败：受限终端/沙箱/远程会话里 `ChangeWindowMessageFilterEx` 拒绝访问
+    （PermissionError/OSError WinError 5），或桌面外壳不可用。1.2.4 及以前该异常一路
+    冒到 `__main__`，用户看到的是 PyInstaller 的英文 traceback；这里改为 MessageBoxW
+    的可读说明 + best-effort 崩溃日志 + 退出码 2（与 reme-helper 1.2.9 同款语义）。
+    """
+    try:
+        icon.run(setup=setup)
+    except Exception as exc:  # noqa: BLE001 - 托盘失败必须可读，不能让 traceback 冒到用户面前
+        detail = traceback.format_exc()
+        try:
+            _log("tray startup failed:\n" + detail)
+        except Exception:
+            pass
+        _show_startup_failure(_tray_failure_text(exc, detail))
+        return 2
+    return 0
+
+
+def main_entry():
+    """`__main__` 的唯一入口：启动期未捕获异常 → 可读提示 + 退出码 2，不甩 traceback。"""
+    try:
+        return main()
+    except Exception as exc:  # noqa: BLE001 - 启动失败必须给用户可读原因
+        detail = traceback.format_exc()
+        try:
+            _log("fatal application error:\n" + detail)
+        except Exception:
+            pass
+        _show_startup_failure(_startup_failure_text(exc, detail))
+        return 2
+
 # ---------------- main ----------------
 # 单实例：命名互斥体（tray_kit；名字不含版本号，跨版本互拦）
 
@@ -1299,8 +1495,9 @@ def ocx_monitor_loop(icon):
 def smoke():
     """冻结冒烟（工程·smoke不绕行 旁路）：**不抢互斥体、不写注册表、不启动托盘**。
 
-    必须在 main() 的 acquire_single_instance 之前调用——否则用户常驻实例在跑时
-    冒烟会拿不到互斥体，转而走重复启动提示（模态 MessageBox，会把构建挂死）。
+    必须在 main() 的 acquire_single_instance 之前调用——用户常驻实例在跑时冒烟拿不到
+    互斥体，会走重复启动分支；1.2.5 起那条分支是静默移交（写 show.request，不再弹
+    模态框、也不会挂死构建），但冒烟本身仍是**只读检查**，不该去扰动常驻实例。
     """
     # D3.1 / 判据·smoke不绕 守卫覆盖探针：名字合法性（不占锁、不弹窗），须与运行期守卫同名。
     if not tray_kit.mutex_name_is_valid(APP_ID):
@@ -1311,6 +1508,10 @@ def smoke():
     print(f"app: {APP_NAME}")
     print(f"config: {CONFIG_PATH}")
     print(f"config exists: {CONFIG_PATH.exists()}")
+    # 日志 fail-open 探针：初始化失败时这里必须显示 FAILED 而不是崩掉（本行也是
+    # test_log_failopen 之外的第二条机械证据：冻结 smoke 里日志状态可读）。
+    print(f"log dir: {LOG_DIR}")
+    print("log init: " + ("ok" if LOG_INIT_ERROR is None else f"FAILED: {LOG_INIT_ERROR}"))
     print(f"targets: {len(CFG['targets'])}")
     for t in CFG["targets"]:
         print(f"  - {t['name']}  {conn_str(t)}  port={t.get('port',22)}  remote_port={t.get('remote_port')}  enabled={t.get('enabled',True)}")
@@ -1344,11 +1545,10 @@ def smoke():
 def main():
     global _TRAY_ICON
     if not tray_kit.acquire_single_instance("opencodex-helper", log=_log):
-        _log("another instance is already running; exiting")
-        tray_kit.warn_duplicate_instance(
-            i18n.t("app_name"),
-            message="\n\n".join([i18n.t("dup_running"),
-                                  i18n.t("dup_hint")]))
+        # 重复启动不再弹模态框（用户把它当报错）：写 show.request 请常驻实例弹气泡，
+        # 本进程静默退出 0。常见来源就是从 release 目录再双击一次 exe。
+        _log("another instance is already running; requesting it to notify")
+        request_show_notification()
         return 0
     # 判据·启动自证：锚是「第一个字符串实参以 `startup` 开头的 log 行」—— 原来这里是 `starting`，
     # 所以判据报「锚 0 处」（**缺启动标记本身就是缺口**：第一次/第二次启动都无法归属）。
@@ -1436,6 +1636,8 @@ def main():
     threading.Thread(target=ocx_monitor_loop, args=(icon,), daemon=True).start()
     # 第②拍：菜单开着时被推迟的重画在这里补上（探针间隔最长 30 分钟，不能靠它）。
     threading.Thread(target=menu_refresh_loop, name="ocx-menu-refresh", daemon=True).start()
+    # 重复启动移交：第二个实例写 show.request，这里消费它 → 托盘气泡「已在运行」。
+    threading.Thread(target=show_watch_loop, name="ocx-show-watch", daemon=True).start()
 
     def _setup_tray(_icon):
         # 传入自定义 setup 后，pystray 不会再自动设置 visible=True。
@@ -1448,8 +1650,9 @@ def main():
             except Exception:
                 pass
 
-    icon.run(setup=_setup_tray)
-    return 0
+    # 托盘创建失败（受限终端/沙箱/远程会话）由 run_tray 转成可读提示 + 退出码 2，
+    # 不再把 PyInstaller 的英文 traceback 甩给用户（1.2.4 用户实测缺陷）。
+    return run_tray(icon, _setup_tray)
 
 def lang_audit():
     """--lang-audit／中英双语 i18n 自检：静态扫描本文件里未进 zh 词表的中文串。
@@ -1500,4 +1703,6 @@ if __name__ == "__main__":
         sys.exit(lang_audit())
     if "--smoke" in sys.argv:
         sys.exit(smoke())
-    sys.exit(main())
+    # 启动期任何未捕获异常都转成可读提示 + 退出码 2：冻结的 noconsole exe 里 traceback
+    # 只会变成 PyInstaller 的英文崩溃窗口，用户既读不懂也拿不到（1.2.4 实测）。
+    sys.exit(main_entry())
