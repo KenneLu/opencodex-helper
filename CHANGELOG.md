@@ -3,6 +3,9 @@
 All notable changes to opencodex-helper are documented here.
 The tagging convention matches the versions in this file.
 
+## Unreleased
+- **Template modules migrated from copied files to a git submodule borrow** (2026-10-19, Wave 2): the `src/template/` copies are retired and replaced by `git submodule add https://github.com/KenneLu/my-diy-tool-template.git src/template`, pinned at kit commit `c600cec` (one source for all family modules). Tool-difference parameters — `APP_ID` / `APP_NAME` / `AUTOSTART_KEY` / `REPO_OWNER` / `REPO_NAME` / `EXE_NAME` and the icon draw functions `ICON_DRAW` (was `_draw_icon`) plus `ICON_STATE_ARTISTS` (was `_state_icon`, connected/disconnected) — moved 1:1 into the tool-owned card `src/app_params.py`, which `template.appconfig` imports at runtime (`try: import app_params`). `VERSION` is deliberately **not** in the card: `src/main.py` remains the single source. `build.bat`: retired the `conformance_check.py` temp-leak segment that went away with the copy model, kept the `sync_check.py` borrow gate, and added `src\app_params.py` to the compile gate. CI: both workflows (`tests.yml`, `release.yml`) now check out with `submodules: recursive` (a bare checkout would fail the compile/import gates now that `src/template` is a borrow) and their `py_compile` lists include `src/app_params.py`. No runtime behavior change.
+
 ## 1.2.3
 - **Semantic IDs across docs, comments and bat annotations** (2026-10-08, W9): single-letter reference codes (criterion IDs, spec section anchors, checklist entry IDs, bat step tags) replaced with semantic names throughout; machine-facing checker interface now uses kebab-case slugs. Documentation/comment/naming layer only - no runtime behavior change; gate re-run green (conformance 0 FAIL, sync 0 drift, full-suite compile pass).
 

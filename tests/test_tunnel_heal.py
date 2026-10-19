@@ -135,7 +135,10 @@ tt.state = tunnel_kit.STATE_NONE
 check("probe 异常时 NONE 态仍 False（无链路可保）", tt.alive() is False)
 hdr = [ln for ln in open("src/template/tunnel_kit/tunnel_kit.py", encoding="utf-8").read().splitlines()[:3]
        if "TEMPLATE-VER" in ln]
-check("副本头 VER=0.1.2（头变换 TEMPLATE-FROM）", bool(hdr) and "0.1.2" in hdr[0] and "TEMPLATE-FROM" in hdr[0], hdr)
+# Wave 2：tunnel_kit 不再是本地副本，而是 submodule 借条里的 kit 正本 →
+# 头型是 kit 的 TEMPLATE-MODULE（TEMPLATE-FROM 只在拷贝模式存在）。仍钉语义版本 0.1.2。
+check("借条件 VER=0.1.2（kit 头型 TEMPLATE-MODULE）",
+      bool(hdr) and "0.1.2" in hdr[0] and "TEMPLATE-MODULE" in hdr[0], hdr)
 
 print("TUNNEL HEAL TEST " + ("FAILED: " + ",".join(FAILS) if FAILS else "OK"), flush=True)
 sys.exit(1 if FAILS else 0)
