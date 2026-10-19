@@ -88,5 +88,60 @@ only_zh = sorted(set(zh) - set(en))
 check("en/zh key sets are identical", not only_en and not only_zh,
       "only_en=%s only_zh=%s" % (only_en[:5], only_zh[:5]))
 
+# ---- 中文值里的中英文空格门禁（用户可见的菜单/对话框/气泡文案）----------------
+# 规则：**汉字与拉丁字母/英文词之间必须有一个半角空格**。
+#   正例 "启动全部 ssh 隧道"；反例 "启动全部ssh 隧道"——用户在菜单里直接看到。
+# 不适用：URL / 命令 / 代码 / 路径 / 格式占位符（%s 等）原样保留；数字+中文单位
+# 不强制（本门禁只匹配拉丁字母，天然不涉及数字）。
+# 白名单：仅允许"格式占位符 / 命令片段"这类**确需贴写**的例外。本仓当前 0 个例外
+# ——加一条白名单就等于放行一类文案，宁可先让门禁红，也不要静默放宽。
+SPACING_EXEMPT = ()          # 以后若出现确需贴写的命令片段，在这里列明 pattern
+CJK_LATIN = re.compile(r"[\u4e00-\u9fff][A-Za-z]|[A-Za-z][\u4e00-\u9fff]")
+
+
+def spacing_hits(value):
+    """返回中文值与拉丁字母**直接相邻**（无空格）的片段列表。"""
+    return [match.group(0) for match in CJK_LATIN.finditer(value)]
+
+
+def spacing_violations(table, exempt=SPACING_EXEMPT):
+    """扫整张词表 → {键: [命中片段]}；白名单 pattern 先剔除再判断。"""
+    bad = {}
+    for key, value in table.items():
+        if not isinstance(value, str):
+            continue
+        text = value
+        for pattern in exempt:
+            text = pattern.sub("", text)
+        hits = spacing_hits(text)
+        if hits:
+            bad[key] = hits
+    return bad
+
+
+# 判别力自校（缺了它，"0 命中"证明不了门禁有效）：
+check("spacing gate: scan surface is non-empty", len(zh) > 100, "zh values=%d" % len(zh))
+check("spacing gate: known-bad control is caught",
+      spacing_hits("启动全部ssh 隧道") == ["部s"],
+      str(spacing_hits("启动全部ssh 隧道")))
+check("spacing gate: known-good control is NOT caught",
+      spacing_hits("启动全部 ssh 隧道") == [],
+      str(spacing_hits("启动全部 ssh 隧道")))
+
+bad_spacing = spacing_violations(zh)
+for key, hits in sorted(bad_spacing.items()):
+    print("      SPACING %s -> %s" % (key, hits))
+check("zh values: no CJK<->Latin adjacency (one half-width space required)",
+      not bad_spacing, "violations=%s" % (bad_spacing or "none"))
+
+# 语言切换项在两种界面语言下都同时显示「English / 中文」——这是刻意的双语对照，
+# 也是 en 表里唯一允许出现汉字的键；除此之外 en 表必须全英文。
+BILINGUAL_KEYS = {"menu_language"}
+zh_chars_in_en = sorted(k for k, v in en.items()
+                        if isinstance(v, str) and k not in BILINGUAL_KEYS
+                        and re.search(r"[\u4e00-\u9fff]", v))
+check("en values contain no Chinese text (except the bilingual language toggle)",
+      not zh_chars_in_en, str(zh_chars_in_en))
+
 print("I18N KEYS TEST " + ("FAILED: " + ",".join(FAILS) if FAILS else "OK"), flush=True)
 sys.exit(1 if FAILS else 0)
