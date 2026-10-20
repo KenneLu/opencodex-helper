@@ -97,6 +97,10 @@ def _noop_open_log_dir():
 
 try:
     _log, open_log_dir = log_kit.make_logger(LOG_DIR)
+    # log_kit 1.0.5 起初始化失败在模板层静默（NullHandler + LAST_INIT_ERROR）；
+    # 工具侧仍要保留「可见的失败信号 + LOG_INIT_ERROR」诊断契约，故把它转成异常走同一兜底。
+    if getattr(log_kit, "LAST_INIT_ERROR", ""):
+        raise RuntimeError(log_kit.LAST_INIT_ERROR)
 except Exception as exc:  # noqa: BLE001 - 日志永远不能把主流程弄死
     LOG_INIT_ERROR = exc
     try:
