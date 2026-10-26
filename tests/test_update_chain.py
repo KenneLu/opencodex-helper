@@ -85,9 +85,10 @@ check("newer version cached for the menu", ok, "LATEST_VERSION=%r" % (M.LATEST_V
 # ② 下载完成 → 缓存返回的脚本路径
 M.PENDING_UPDATE_CMD = None
 M.update_helper.download_and_prepare = (
-    lambda latest, target_dir, update_dir, log=None: r"C:\tmp\ocx-apply.cmd")
+    lambda latest, target_dir, update_dir, log=None, progress=None: r"C:\tmp\ocx-apply.cmd")
 _real_frozen = getattr(sys, "frozen", None)
 sys.frozen = True   # 解锁 packaged-only 分支
+M._ask_update_choice = lambda download: (download(lambda *a: None), "later")[1]
 try:
     M.download_update_menu(_Icon(), None)
     ok = wait_for(lambda: M.PENDING_UPDATE_CMD is not None)
@@ -136,7 +137,7 @@ try:
     _ok = _UH.launch_pending_cmd(r"C:\tmp\ocx-apply.cmd", log=lambda *a: None)
 finally:
     _UH.subprocess.Popen = _real_popen
-_want = getattr(_sp, "CREATE_NO_WINDOW", 0) | getattr(_sp, "DETACHED_PROCESS", 0)
+_want = getattr(_sp, "CREATE_NO_WINDOW", 0)   # 1.5.3: no DETACHED (robocopy console)
 check("launch flags suppress the console and detach the child",
       _ok is True and _seen.get("flags") == _want, repr(_seen))
 

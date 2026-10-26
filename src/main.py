@@ -32,7 +32,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 import pystray
 from PIL import Image, ImageDraw
 
-from template import autostart, i18n, log_kit, paths, tray_icons, tray_kit, update_helper   # noqa: E402
+from template import autostart, i18n, log_kit, paths, tray_icons, tray_kit, update_helper, update_ui   # noqa: E402
 from template.service_link import service_link   # noqa: E402  ：服务编排（boot ensure）
 from template.tunnel_kit import tunnel_kit   # noqa: E402  ：参数正本 + 自愈语义
 from template.appconfig import APP_ID   # noqa: E402
@@ -60,7 +60,7 @@ def _resource_path(name):
 PLINK_PATH = _resource_path("bin/plink.exe")
 
 APP_NAME = "opencodex 助手"
-VERSION = "1.2.8"
+VERSION = "1.2.9"
 
 DEFAULT_CONFIG = {
     "targets": [],
@@ -1084,20 +1084,58 @@ def check_update_menu(_icon=None, _item=None):
     threading.Thread(target=worker, daemon=True).start()
 
 
+def _ask_update_choice(download):
+    """统一更新弹窗（模板 update_ui）；单独成函数供测试替换，避免真实窗口。"""
+    return ui_post(lambda: update_ui.run_download_dialog(
+        download, lang=i18n.current_lang(), app_name=i18n.t("app_name"), log=_log,
+        icon=_resource_path("resources/icons/default/48.png")))
+
+
+def apply_pending_update_and_quit():
+    """用户点「立即更新」：已在弹窗里明确同意退出，直接走 on_quit 的收尾（不再二次确认）。"""
+    if not PENDING_UPDATE_CMD:
+        return
+    real_confirm = tray_kit.confirm_quit_dialog
+    tray_kit.confirm_quit_dialog = lambda *a, **k: {"go": True, "stop_service": False}
+    try:
+        on_quit(_TRAY_ICON, None)
+    finally:
+        tray_kit.confirm_quit_dialog = real_confirm
+
+
 def download_update_menu(_icon=None, _item=None):
-    global PENDING_UPDATE_CMD
     latest = LATEST_VERSION
     if not latest or not getattr(sys, "frozen", False):
         return
 
     def worker():
         global PENDING_UPDATE_CMD
+
+        def download(progress):
+            global PENDING_UPDATE_CMD
+            path = update_helper.download_and_prepare(
+                latest, APP_DIR, UPDATE_DIR, log=_log, progress=progress)
+            PENDING_UPDATE_CMD = path
+            return path
+
         try:
-            PENDING_UPDATE_CMD = update_helper.download_and_prepare(latest, APP_DIR, UPDATE_DIR, log=_log)
-            _icon.notify(i18n.t("notify_update_ready"), i18n.t("app_name"))
-        except Exception as e:
-            _log(f"update download failed: {e}")
-            _icon.notify(i18n.t("notify_update_download_failed", e), i18n.t("app_name"))
+            decision = _ask_update_choice(download)
+        except Exception as exc:  # noqa: BLE001
+            _log(f"update dialog failed: {exc}")
+            try:
+                _icon.notify(i18n.t("notify_update_download_failed", exc), i18n.t("app_name"))
+            except Exception:
+                pass
+            return
+        if decision == "apply":
+            if not PENDING_UPDATE_CMD:
+                _log("update: apply requested but no pending script exists")
+                return
+            _log("update: user chose apply; quitting to replace files")
+            apply_pending_update_and_quit()
+            return
+        if decision == "later":
+            _log("update: user chose later; applies on next quit")
         try:
             _icon.update_menu()
         except Exception:

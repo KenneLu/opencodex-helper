@@ -1,0 +1,224 @@
+[VERSION] 1.2.9  release: release\opencodex-helper-1.2.9
+[GATE] py_compile src\main.py + src\icons.py + src\app_params.py + src\template ...
+src\icons.py:4: SyntaxWarning: invalid escape sequence '\i'
+  build.bat GATE 调 `python src\icons.py`：脚本目录（src）自动进 sys.path。
+[GATE] i18n key coverage ...
+i18n core keys: 9 missing: []
+[GATE] lang-audit ...
+lang-audit: 0 untranslated Chinese literal(s); zh table=110 values
+[TEST] tests suite ...
+  ok   show.request lives in the user data root (same convention as quit.request)
+  ok   negative control: consume with no request is a no-op
+  ok   stale show.request does not exist before the duplicate launch
+  ok   duplicate launch writes show.request
+  ok   request file records the second instance pid
+  ok   resident instance consumes the request (file deleted)
+  ok   resident instance notifies 'already running' via the tray in the current language
+  ok   negative control: consuming again notifies nothing
+  ok   duplicate launch returns 0 silently
+  ok   duplicate launch wrote show.request (hand-over to the resident instance)
+  ok   duplicate launch no longer calls warn_duplicate_instance (no modal)
+  ok   duplicate launch pops no MessageBox at all
+  ok   resident side then consumes the hand-over and notifies
+  ok   temp dir cleaned up (no %TEMP% leak)
+DUPLICATE LAUNCH TEST OK
+<unknown>:4: SyntaxWarning: invalid escape sequence '\i'
+  ok   scan surface is non-empty (a empty surface would fake a pass)  keys=104
+  ok   known-bad control is caught by the same rule  ['__nonexistent_key_for_control__']
+  ok   known-good control is NOT caught  app_name
+  ok   every i18n.t() literal key exists in BOTH tables  missing=none
+  ok   en/zh key sets are identical  only_en=[] only_zh=[]
+  ok   spacing gate: scan surface is non-empty  zh values=113
+  ok   spacing gate: known-bad control is caught  ['部s']
+  ok   spacing gate: known-good control is NOT caught  []
+  ok   zh values: no CJK<->Latin adjacency (one half-width space required)  violations=none
+  ok   en values contain no Chinese text (except the bilingual language toggle)  []
+I18N KEYS TEST OK
+  ok   starts in Chinese  zh
+  ok   Chinese menu contains 退出
+  ok   language switched to English (read via package)  en
+  ok   menu was rebuilt explicitly
+  ok   rebuilt menu is English  ['opencodex helper v1.2.9', 'Tunnels: not connected', 'opencodex service: offline', 'Restart safety: unavailable', '- - - -', 'Check for updates']
+  ok   choice persisted to config.json
+  ok   switch back to Chinese
+  ok   temp dir cleaned up (no %TEMP% leak)  H:\Tools\_verify-scratch\ocx-i18n-menu-test-_r_l0aiu
+I18N MENU TEST OK
+  ok   A: an OWNED handle IS terminated
+  ok   A: the OWNED registry entry is popped
+  ok   A: kill is a no-op (no raise) when there is no OWNED handle
+  ok   B: scan surface is non-empty (the probe can actually see the forbidden forms)
+  ok   B: no process-table enumeration remains in main.py  []
+  ok   B: an external process (never registered as OWNED) is untouched
+  ok   temp dir cleaned up (no %TEMP% leak)  H:\Tools\_verify-scratch\ocx-kill-scope-16_g4s22
+OCX KILL-SCOPE TEST OK
+  ok   control: import exits 0 on a writable data root
+  ok   control: no failure signal when logging works
+  ok   control: LOG_INIT_ERROR is None
+  ok   control temp dir cleaned up (no leak)
+  ok   probe: log path resolved
+  ok   setup: log path is a regular file (blocks mkdir/handler)
+  ok   import exits 0 with the log path blocked
+  ok   module import completed
+  ok   no uncaught traceback
+  ok   failure was signalled on stderr (not silent)
+  ok   second startup landmine (paths.seed_config -> LOG_DIR.mkdir) is fail-open too
+  ok   LOG_INIT_ERROR carries the real reason (not swallowed)
+  ok   fallback _log/open_log_dir callable without raising
+  ok   blocked temp dir cleaned up (no leak)
+LOG FAIL-OPEN TEST OK
+  ok   broken dialog chain still quits (fail open)  stopped=True
+  ok   the fail-open branch is the one that ran (not some other path)  ["native confirm failed (TclError: Can't find a usable init.tcl in the following directories: {C:/.../_internal/_tcl_data} - the first dialog after a hollowed _internal)", 'quit confirm unavailable; quitting without stopping the service', 'quit: tunnels keep running (checkbox not ticked); owned handles released with this process']
+  ok   fail open does not stop the service (no signature-wide kill)  []
+  ok   marshalling failure also fails open  stopped=True
+  ok   marshalling failure does not stop the service  []
+  ok   explicit cancel still does NOT quit  stopped=False
+  ok   the cancel branch really ran (dialog answered, not skipped)  ['quit cancelled by user']
+  ok   cancel stops nothing even when the box was ticked  []
+  ok   a real user 'yes' still quits  stopped=True
+  ok   a real user 'yes' still honours the 'stop service' checkbox  [{'name': 'probe-target', 'host': '127.0.0.1', 'port': 22, 'remote_port': 10100}]
+  ok   widget contract: CANCEL returns a dict, not None (fail-open arm stays reachable)  returned {'go': False, 'stop_service': False}
+  ok   widget contract: cancel is expressed as go=False, not as a missing return  returned {'go': False, 'stop_service': False}
+  ok   control: CONFIRM still yields go=True (so the cancel leg is discriminating)  returned {'go': True, 'stop_service': False}
+  ok   temp dir cleaned up (no %TEMP% leak)  H:\Tools\_verify-scratch\ocx-quit-test-2ybccagc
+QUIT FAIL-OPEN TEST OK
+  ok   mutex name matches the family derivation  Local\opencodex-helper-single-instance
+  ok   mutex name has no second backslash  Local\opencodex-helper-single-instance
+  ok   mutex name is Local-scoped
+  ok   mutex name carries APP_ID
+  ok   CreateMutexW accepts the derived name  err=0
+  ok   probe accepts the derived name
+  ok   probe rejects the old illegal name
+  ok   old illegal name still fails  err=3
+  ok   first acquire passes
+  ok   second acquire is refused
+  ok   guard failure fails OPEN (never blocks startup)
+  ok   temp dir cleaned up (no %TEMP% leak)  H:\Tools\_verify-scratch\ocx-single-test-i2ecdndz
+SINGLE INSTANCE TEST OK
+  ok   sweep removes only stale update dirs (older than 1h)  removed=1 old=False fresh=True other=True
+  ok   failed marker reported once, then deleted (silent on 2nd start)  first='上次自动更新失败，已回退到原版本并保留现场；详见 update.log（rc=1 apply.cmd rollback）' second='' marker=False
+  ok   exe-delete-guard is a no-op in dev mode and says why (never silent)  ret=False log=['exe delete-guard: dev mode - skipped (a handle on python.exe protects nothing)']
+  ok   main() returned 0 (guard passed)  rc=0
+  ok   startup sequence reached (log has startup)  ['2026-10-26 14:25:07,473 INFO startup opencodex 助手 v1.2.9 (pid 22960)', '2026-10-26 14:25:07,473 INFO data root: H:\\Tools\\_verify-scratch\\ocx-startup-test-q8_ycu49\\opencodex-helper']
+  ok   migrate_autostart called on startup  {'autostart': 1, 'scans': 1, 'probes': 1, 'monitors': 2}
+  ok   initial token scan and probe started  {'autostart': 1, 'scans': 1, 'probes': 1, 'monitors': 2}
+  ok   startup wiring order: delete-guard, sweep, failed-note, then tray  ['guard', 'sweep', 'note', 'tray']
+  ok   duplicate-launch watcher started (show.request consumer)  ['MainThread', 'ocx-boot', 'ocx-update-check', 'Thread-3 (_readerthread)', 'Thread-4 (_readerthread)', 'ocx-menu-refresh', 'ocx-show-watch']
+  ok   failed-update note is surfaced through the i18n table  ['上次自动更新失败，已回退到原版本并保留现场；详见 update.log']
+  ok   log written inside the isolated data dir  H:\Tools\_verify-scratch\ocx-startup-test-q8_ycu49\opencodex-helper\log\opencodex-helper.log
+  ok   APP_DIR has a single source (paths, not a local re-derivation)  H:\Tools\my_diy_tools\opencodex-helper vs H:\Tools\my_diy_tools\opencodex-helper
+  ok   plink resolves in dev mode  H:\Tools\my_diy_tools\opencodex-helper\bin\plink.exe
+  ok   real update.failed marker is surfaced on the next start  ['上次自动更新失败，已回退到原版本并保留现场；详见 update.log']
+  ok   real update.failed marker is consumed (read once, then deleted)  H:\Tools\_verify-scratch\ocx-startup-test-q8_ycu49\opencodex-helper\update.failed
+  ok   second start stays silent (read-once, no repeat nag)  []
+  ok   temp dir cleaned up (no %TEMP% leak)  H:\Tools\_verify-scratch\ocx-startup-test-q8_ycu49
+STARTUP PATH TEST OK
+  ok   A: password prompt cancelled -> NOTHING is killed  killed=[]
+  ok   A2: once credentials ARE obtained, cleanup happens as before  killed=[{'name': 'probe-target', 'host': '127.0.0.1', 'port': 22, 'remote_port': 10100, 'enabled': True}]
+  ok   B: confident negative with a usable key still cleans up  killed=[{'name': 'probe-target', 'host': '127.0.0.1', 'port': 22, 'remote_port': 10100, 'enabled': True}]
+  ok   C: already-connected short-circuit kills nothing  killed=[] rc=(False, 'probe-target 隧道已连接，未重复启动')
+  ok   temp dir cleaned up (no %TEMP% leak)  H:\Tools\_verify-scratch\ocx-start-failopen-mfq20tr9
+START TARGET FAIL-OPEN TEST OK
+  ok   tray failure text carries every actionable hint
+  ok   tray failure text keeps a traceback tail for the maintainer
+  ok   tray failure text leads with the readable headline (not a raw english traceback)
+无法创建系统托盘图标（拒绝访问）。
+
+常见原因：程序从受限终端 / 沙箱 / 远程会话启动，或系统托盘暂不可用。
+请从 Windows 文件资源管理器直接双击本程序启动；
+若仍失败，请重启资源管理器或电脑后重试。
+
+详细信息（可复制发给维护者）：
+Traceback (most recent call last):
+  File "H:\Tools\my_diy_tools\opencodex-helper\src\main.py", line 1508, in run_tray
+    icon.run(setup=setup)
+    ~~~~~~~~^^^^^^^^^^^^^
+  File "H:\Tools\my_diy_tools\opencodex-helper\tests\test_tray_failure.py", line 56, in run
+    raise PermissionError(13, "Access is denied")
+PermissionError: [Errno 13] Access is denied
+
+  ok   run_tray converts a tray PermissionError into exit code 2
+  ok   run_tray shows exactly one readable MessageBox with the failure title
+  ok   the MessageBox body is the readable hint text, not an english-only traceback
+  ok   run_tray writes the crash log best-effort
+  ok   run_tray never raises (the caller gets an exit code, not a traceback)
+  ok   run_tray returns 0 when the tray loop ends normally
+  ok   negative control: success path shows no failure dialog
+  ok   negative control: success path writes no new crash log
+程序启动失败：[Errno 13] simulated startup failure
+
+详细信息（可复制发给维护者）：
+Traceback (most recent call last):
+  File "H:\Tools\my_diy_tools\opencodex-helper\src\main.py", line 1523, in main_entry
+    return main()
+  File "H:\Tools\my_diy_tools\opencodex-helper\tests\test_tray_failure.py", line 111, in _boom_main
+    raise PermissionError(13, "simulated startup failure")
+PermissionError: [Errno 13] simulated startup failure
+
+  ok   main_entry turns an unexpected startup exception into exit code 2
+  ok   main_entry shows one readable dialog
+  ok   main_entry dialog names the actual exception
+  ok   main_entry dialog carries the traceback tail for the maintainer
+headless probe text
+  ok   negative control: headless (--smoke) shows no dialog
+  ok   headless still writes the best-effort crash log
+  ok   crash log stays inside the isolated user data root
+  ok   temp dir cleaned up (no %TEMP% leak)
+TRAY FAILURE TEST OK
+  ok   状态键集 == 资产目录状态集
+  ok   四态键名齐（ok/ok_tunnel/down/down_tunnel）
+  ok   全套帧在位（5 状态 × 5 档）
+  ok   init 解析到资产目录
+  ok   按档加载四态 + default（32 档）
+tray_icons: state '__nope__' missing, falling back to default
+  ok   缺图回退 default 永不崩
+  ok   set_state 去重
+  ok   四态映射真值表（4 条）
+  ok   负控：漏隧道维度的映射被真值表拒绝
+  ok   负控：第 4 态（服务断+隧道在）不折叠成 down
+  ok   唯一写入点：set_state( 仅 1 处
+  ok   rebuild_menu 用 _tray_state_key 映射
+  ok   初始化与运行期同一函数（_tray_state_key 定义 + 2 调用）
+  ok   _menu_signature 仍含 _ocx_state（服务健康变化触发重画）
+  ok   无旧状态键残留（"connected"/"disconnected" 字面量）
+  ok   temp dir cleaned up (no %TEMP% leak)
+TRAY ICONS TEST OK
+  ok   命令行含 ExitOnForwardFailure=yes
+  ok   命令行含 ServerAliveInterval=30 / CountMax=3
+  ok   命令行含 -N 与 -R 段
+  ok   -R 端口段形态
+  ok   前 2 次失败不重连（unconfirmed）
+  ok   第 3 次确认后重连
+  ok   退避门拦截（刚连过不再连）
+  ok   退避到期后再连
+  ok   失败重连后退避翻倍至 60s
+  ok   失败重连后退避翻倍至 120s
+  ok   失败重连后退避翻倍至 240s
+  ok   重连成功后退避复位至 30s
+  ok   退避 600 封顶（480→600→600）
+  ok   密码型确认死后仍不自动重连
+tunnel probe error (fail-open, keep owned): probe broken
+  ok   probe 异常时 OWNED 态 fail-open（不判死）
+tunnel probe error (fail-open, keep adopted): probe broken
+  ok   probe 异常时 ADOPTED 态 fail-open
+tunnel probe error (fail-open, keep none): probe broken
+  ok   probe 异常时 NONE 态仍 False（无链路可保）
+  ok   借条件 VER=0.1.2（kit 头型 TEMPLATE-MODULE）
+TUNNEL HEAL TEST OK
+  ok   ui_post returns the callable's result  42
+  ok   ui_post propagates the exception to the caller  ValueError: expected
+  ok   all work runs on one dedicated thread  idents=[3956] main=7560
+  ok   re-entrant ui_post from the UI thread does not deadlock  'nested'
+  ok   the UI thread is started on demand (main() never ran here)  ['MainThread', 'ocx-ui']
+  ok   temp dir cleaned up (no %TEMP% leak)  H:\Tools\_verify-scratch\ocx-ui-test-ryyy1sse
+UI MARSHAL TEST OK
+  ok   tool log() accepts the template's multi-arg (print) form
+  ok   newer version cached for the menu  LATEST_VERSION='9.9.9'
+  ok   pending script path stored from return value  'C:\\tmp\\ocx-apply.cmd'
+  ok   quit launches the stored apply script  ['C:\\tmp\\ocx-apply.cmd']
+  ok   quit no longer goes through os.system (the console-flash path is gone)  []
+  FAIL launch flags suppress the console and detach the child  {'argv': ['cmd.exe', '/c', 'C:\\tmp\\ocx-apply.cmd'], 'flags': 134217728}
+  ok   the script really runs detached  marker=True elapsed=0.1s
+  ok   launch did not hang (< 10.0s)  elapsed=0.1s —— 若超时，疑似模态框（start 目标缺失或真跑单实例守卫）
+  ok   temp dir cleaned up (no %TEMP% leak)  H:\Tools\_verify-scratch\ocx-update-test-e7fuidc7
+UPDATE CHAIN TEST FAILED: launch flags suppress the console and detach the child
+[ERROR] test failed: tests\test_update_chain.py
