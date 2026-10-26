@@ -60,7 +60,7 @@ def _resource_path(name):
 PLINK_PATH = _resource_path("bin/plink.exe")
 
 APP_NAME = "opencodex 助手"
-VERSION = "1.2.7"
+VERSION = "1.2.8"
 
 DEFAULT_CONFIG = {
     "targets": [],
