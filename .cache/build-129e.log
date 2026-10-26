@@ -1,0 +1,384 @@
+[VERSION] 1.2.9  release: release\opencodex-helper-1.2.9
+[GATE] py_compile src\main.py + src\icons.py + src\app_params.py + src\template ...
+src\icons.py:4: SyntaxWarning: invalid escape sequence '\i'
+  build.bat GATE 调 `python src\icons.py`：脚本目录（src）自动进 sys.path。
+[GATE] i18n key coverage ...
+i18n core keys: 9 missing: []
+[GATE] lang-audit ...
+lang-audit: 0 untranslated Chinese literal(s); zh table=110 values
+[TEST] tests suite ...
+  ok   show.request lives in the user data root (same convention as quit.request)
+  ok   negative control: consume with no request is a no-op
+  ok   stale show.request does not exist before the duplicate launch
+  ok   duplicate launch writes show.request
+  ok   request file records the second instance pid
+  ok   resident instance consumes the request (file deleted)
+  ok   resident instance notifies 'already running' via the tray in the current language
+  ok   negative control: consuming again notifies nothing
+  ok   duplicate launch returns 0 silently
+  ok   duplicate launch wrote show.request (hand-over to the resident instance)
+  ok   duplicate launch no longer calls warn_duplicate_instance (no modal)
+  ok   duplicate launch pops no MessageBox at all
+  ok   resident side then consumes the hand-over and notifies
+  ok   temp dir cleaned up (no %TEMP% leak)
+DUPLICATE LAUNCH TEST OK
+<unknown>:4: SyntaxWarning: invalid escape sequence '\i'
+  ok   scan surface is non-empty (a empty surface would fake a pass)  keys=104
+  ok   known-bad control is caught by the same rule  ['__nonexistent_key_for_control__']
+  ok   known-good control is NOT caught  app_name
+  ok   every i18n.t() literal key exists in BOTH tables  missing=none
+  ok   en/zh key sets are identical  only_en=[] only_zh=[]
+  ok   spacing gate: scan surface is non-empty  zh values=113
+  ok   spacing gate: known-bad control is caught  ['部s']
+  ok   spacing gate: known-good control is NOT caught  []
+  ok   zh values: no CJK<->Latin adjacency (one half-width space required)  violations=none
+  ok   en values contain no Chinese text (except the bilingual language toggle)  []
+I18N KEYS TEST OK
+  ok   starts in Chinese  zh
+  ok   Chinese menu contains 退出
+  ok   language switched to English (read via package)  en
+  ok   menu was rebuilt explicitly
+  ok   rebuilt menu is English  ['opencodex helper v1.2.9', 'Tunnels: not connected', 'opencodex service: offline', 'Restart safety: unavailable', '- - - -', 'Check for updates']
+  ok   choice persisted to config.json
+  ok   switch back to Chinese
+  ok   temp dir cleaned up (no %TEMP% leak)  H:\Tools\_verify-scratch\ocx-i18n-menu-test-5rc4kznx
+I18N MENU TEST OK
+  ok   A: an OWNED handle IS terminated
+  ok   A: the OWNED registry entry is popped
+  ok   A: kill is a no-op (no raise) when there is no OWNED handle
+  ok   B: scan surface is non-empty (the probe can actually see the forbidden forms)
+  ok   B: no process-table enumeration remains in main.py  []
+  ok   B: an external process (never registered as OWNED) is untouched
+  ok   temp dir cleaned up (no %TEMP% leak)  H:\Tools\_verify-scratch\ocx-kill-scope-yn8aaezj
+OCX KILL-SCOPE TEST OK
+  ok   control: import exits 0 on a writable data root
+  ok   control: no failure signal when logging works
+  ok   control: LOG_INIT_ERROR is None
+  ok   control temp dir cleaned up (no leak)
+  ok   probe: log path resolved
+  ok   setup: log path is a regular file (blocks mkdir/handler)
+  ok   import exits 0 with the log path blocked
+  ok   module import completed
+  ok   no uncaught traceback
+  ok   failure was signalled on stderr (not silent)
+  ok   second startup landmine (paths.seed_config -> LOG_DIR.mkdir) is fail-open too
+  ok   LOG_INIT_ERROR carries the real reason (not swallowed)
+  ok   fallback _log/open_log_dir callable without raising
+  ok   blocked temp dir cleaned up (no leak)
+LOG FAIL-OPEN TEST OK
+  ok   broken dialog chain still quits (fail open)  stopped=True
+  ok   the fail-open branch is the one that ran (not some other path)  ["native confirm failed (TclError: Can't find a usable init.tcl in the following directories: {C:/.../_internal/_tcl_data} - the first dialog after a hollowed _internal)", 'quit confirm unavailable; quitting without stopping the service', 'quit: tunnels keep running (checkbox not ticked); owned handles released with this process']
+  ok   fail open does not stop the service (no signature-wide kill)  []
+  ok   marshalling failure also fails open  stopped=True
+  ok   marshalling failure does not stop the service  []
+  ok   explicit cancel still does NOT quit  stopped=False
+  ok   the cancel branch really ran (dialog answered, not skipped)  ['quit cancelled by user']
+  ok   cancel stops nothing even when the box was ticked  []
+  ok   a real user 'yes' still quits  stopped=True
+  ok   a real user 'yes' still honours the 'stop service' checkbox  [{'name': 'probe-target', 'host': '127.0.0.1', 'port': 22, 'remote_port': 10100}]
+  ok   widget contract: CANCEL returns a dict, not None (fail-open arm stays reachable)  returned {'go': False, 'stop_service': False}
+  ok   widget contract: cancel is expressed as go=False, not as a missing return  returned {'go': False, 'stop_service': False}
+  ok   control: CONFIRM still yields go=True (so the cancel leg is discriminating)  returned {'go': True, 'stop_service': False}
+  ok   temp dir cleaned up (no %TEMP% leak)  H:\Tools\_verify-scratch\ocx-quit-test-gz2yfram
+QUIT FAIL-OPEN TEST OK
+  ok   mutex name matches the family derivation  Local\opencodex-helper-single-instance
+  ok   mutex name has no second backslash  Local\opencodex-helper-single-instance
+  ok   mutex name is Local-scoped
+  ok   mutex name carries APP_ID
+  ok   CreateMutexW accepts the derived name  err=0
+  ok   probe accepts the derived name
+  ok   probe rejects the old illegal name
+  ok   old illegal name still fails  err=3
+  ok   first acquire passes
+  ok   second acquire is refused
+  ok   guard failure fails OPEN (never blocks startup)
+  ok   temp dir cleaned up (no %TEMP% leak)  H:\Tools\_verify-scratch\ocx-single-test-wkgm09xj
+SINGLE INSTANCE TEST OK
+  ok   sweep removes only stale update dirs (older than 1h)  removed=1 old=False fresh=True other=True
+  ok   failed marker reported once, then deleted (silent on 2nd start)  first='上次自动更新失败，已回退到原版本并保留现场；详见 update.log（rc=1 apply.cmd rollback）' second='' marker=False
+  ok   exe-delete-guard is a no-op in dev mode and says why (never silent)  ret=False log=['exe delete-guard: dev mode - skipped (a handle on python.exe protects nothing)']
+  ok   main() returned 0 (guard passed)  rc=0
+  ok   startup sequence reached (log has startup)  ['2026-10-26 14:31:08,687 INFO startup opencodex 助手 v1.2.9 (pid 18440)', '2026-10-26 14:31:08,687 INFO data root: H:\\Tools\\_verify-scratch\\ocx-startup-test-6t81nkxz\\opencodex-helper']
+  ok   migrate_autostart called on startup  {'autostart': 1, 'scans': 1, 'probes': 1, 'monitors': 2}
+  ok   initial token scan and probe started  {'autostart': 1, 'scans': 1, 'probes': 1, 'monitors': 2}
+  ok   startup wiring order: delete-guard, sweep, failed-note, then tray  ['guard', 'sweep', 'note', 'tray']
+  ok   duplicate-launch watcher started (show.request consumer)  ['MainThread', 'ocx-boot', 'ocx-update-check', 'Thread-3 (_readerthread)', 'Thread-4 (_readerthread)', 'ocx-menu-refresh', 'ocx-show-watch']
+  ok   failed-update note is surfaced through the i18n table  ['上次自动更新失败，已回退到原版本并保留现场；详见 update.log']
+  ok   log written inside the isolated data dir  H:\Tools\_verify-scratch\ocx-startup-test-6t81nkxz\opencodex-helper\log\opencodex-helper.log
+  ok   APP_DIR has a single source (paths, not a local re-derivation)  H:\Tools\my_diy_tools\opencodex-helper vs H:\Tools\my_diy_tools\opencodex-helper
+  ok   plink resolves in dev mode  H:\Tools\my_diy_tools\opencodex-helper\bin\plink.exe
+  ok   real update.failed marker is surfaced on the next start  ['上次自动更新失败，已回退到原版本并保留现场；详见 update.log']
+  ok   real update.failed marker is consumed (read once, then deleted)  H:\Tools\_verify-scratch\ocx-startup-test-6t81nkxz\opencodex-helper\update.failed
+  ok   second start stays silent (read-once, no repeat nag)  []
+  ok   temp dir cleaned up (no %TEMP% leak)  H:\Tools\_verify-scratch\ocx-startup-test-6t81nkxz
+STARTUP PATH TEST OK
+  ok   A: password prompt cancelled -> NOTHING is killed  killed=[]
+  ok   A2: once credentials ARE obtained, cleanup happens as before  killed=[{'name': 'probe-target', 'host': '127.0.0.1', 'port': 22, 'remote_port': 10100, 'enabled': True}]
+  ok   B: confident negative with a usable key still cleans up  killed=[{'name': 'probe-target', 'host': '127.0.0.1', 'port': 22, 'remote_port': 10100, 'enabled': True}]
+  ok   C: already-connected short-circuit kills nothing  killed=[] rc=(False, 'probe-target 隧道已连接，未重复启动')
+  ok   temp dir cleaned up (no %TEMP% leak)  H:\Tools\_verify-scratch\ocx-start-failopen-uyxb8qtm
+START TARGET FAIL-OPEN TEST OK
+  ok   tray failure text carries every actionable hint
+  ok   tray failure text keeps a traceback tail for the maintainer
+  ok   tray failure text leads with the readable headline (not a raw english traceback)
+无法创建系统托盘图标（拒绝访问）。
+
+常见原因：程序从受限终端 / 沙箱 / 远程会话启动，或系统托盘暂不可用。
+请从 Windows 文件资源管理器直接双击本程序启动；
+若仍失败，请重启资源管理器或电脑后重试。
+
+详细信息（可复制发给维护者）：
+Traceback (most recent call last):
+  File "H:\Tools\my_diy_tools\opencodex-helper\src\main.py", line 1508, in run_tray
+    icon.run(setup=setup)
+    ~~~~~~~~^^^^^^^^^^^^^
+  File "H:\Tools\my_diy_tools\opencodex-helper\tests\test_tray_failure.py", line 56, in run
+    raise PermissionError(13, "Access is denied")
+PermissionError: [Errno 13] Access is denied
+
+  ok   run_tray converts a tray PermissionError into exit code 2
+  ok   run_tray shows exactly one readable MessageBox with the failure title
+  ok   the MessageBox body is the readable hint text, not an english-only traceback
+  ok   run_tray writes the crash log best-effort
+  ok   run_tray never raises (the caller gets an exit code, not a traceback)
+  ok   run_tray returns 0 when the tray loop ends normally
+  ok   negative control: success path shows no failure dialog
+  ok   negative control: success path writes no new crash log
+程序启动失败：[Errno 13] simulated startup failure
+
+详细信息（可复制发给维护者）：
+Traceback (most recent call last):
+  File "H:\Tools\my_diy_tools\opencodex-helper\src\main.py", line 1523, in main_entry
+    return main()
+  File "H:\Tools\my_diy_tools\opencodex-helper\tests\test_tray_failure.py", line 111, in _boom_main
+    raise PermissionError(13, "simulated startup failure")
+PermissionError: [Errno 13] simulated startup failure
+
+  ok   main_entry turns an unexpected startup exception into exit code 2
+  ok   main_entry shows one readable dialog
+  ok   main_entry dialog names the actual exception
+  ok   main_entry dialog carries the traceback tail for the maintainer
+headless probe text
+  ok   negative control: headless (--smoke) shows no dialog
+  ok   headless still writes the best-effort crash log
+  ok   crash log stays inside the isolated user data root
+  ok   temp dir cleaned up (no %TEMP% leak)
+TRAY FAILURE TEST OK
+  ok   状态键集 == 资产目录状态集
+  ok   四态键名齐（ok/ok_tunnel/down/down_tunnel）
+  ok   全套帧在位（5 状态 × 5 档）
+  ok   init 解析到资产目录
+  ok   按档加载四态 + default（32 档）
+tray_icons: state '__nope__' missing, falling back to default
+  ok   缺图回退 default 永不崩
+  ok   set_state 去重
+  ok   四态映射真值表（4 条）
+  ok   负控：漏隧道维度的映射被真值表拒绝
+  ok   负控：第 4 态（服务断+隧道在）不折叠成 down
+  ok   唯一写入点：set_state( 仅 1 处
+  ok   rebuild_menu 用 _tray_state_key 映射
+  ok   初始化与运行期同一函数（_tray_state_key 定义 + 2 调用）
+  ok   _menu_signature 仍含 _ocx_state（服务健康变化触发重画）
+  ok   无旧状态键残留（"connected"/"disconnected" 字面量）
+  ok   temp dir cleaned up (no %TEMP% leak)
+TRAY ICONS TEST OK
+  ok   命令行含 ExitOnForwardFailure=yes
+  ok   命令行含 ServerAliveInterval=30 / CountMax=3
+  ok   命令行含 -N 与 -R 段
+  ok   -R 端口段形态
+  ok   前 2 次失败不重连（unconfirmed）
+  ok   第 3 次确认后重连
+  ok   退避门拦截（刚连过不再连）
+  ok   退避到期后再连
+  ok   失败重连后退避翻倍至 60s
+  ok   失败重连后退避翻倍至 120s
+  ok   失败重连后退避翻倍至 240s
+  ok   重连成功后退避复位至 30s
+  ok   退避 600 封顶（480→600→600）
+  ok   密码型确认死后仍不自动重连
+tunnel probe error (fail-open, keep owned): probe broken
+  ok   probe 异常时 OWNED 态 fail-open（不判死）
+tunnel probe error (fail-open, keep adopted): probe broken
+  ok   probe 异常时 ADOPTED 态 fail-open
+tunnel probe error (fail-open, keep none): probe broken
+  ok   probe 异常时 NONE 态仍 False（无链路可保）
+  ok   借条件 VER=0.1.2（kit 头型 TEMPLATE-MODULE）
+TUNNEL HEAL TEST OK
+  ok   ui_post returns the callable's result  42
+  ok   ui_post propagates the exception to the caller  ValueError: expected
+  ok   all work runs on one dedicated thread  idents=[20448] main=26284
+  ok   re-entrant ui_post from the UI thread does not deadlock  'nested'
+  ok   the UI thread is started on demand (main() never ran here)  ['MainThread', 'ocx-ui']
+  ok   temp dir cleaned up (no %TEMP% leak)  H:\Tools\_verify-scratch\ocx-ui-test-8af6ok1e
+UI MARSHAL TEST OK
+  ok   tool log() accepts the template's multi-arg (print) form
+  ok   newer version cached for the menu  LATEST_VERSION='9.9.9'
+  ok   pending script path stored from return value  'C:\\tmp\\ocx-apply.cmd'
+  ok   quit launches the stored apply script  ['C:\\tmp\\ocx-apply.cmd']
+  ok   quit no longer goes through os.system (the console-flash path is gone)  []
+  ok   launch flags suppress the console and detach the child  {'argv': ['cmd.exe', '/c', 'C:\\tmp\\ocx-apply.cmd'], 'flags': 134217728}
+  ok   the script really runs detached  marker=True elapsed=0.1s
+  ok   launch did not hang (< 10.0s)  elapsed=0.1s —— 若超时，疑似模态框（start 目标缺失或真跑单实例守卫）
+  ok   temp dir cleaned up (no %TEMP% leak)  H:\Tools\_verify-scratch\ocx-update-test-d7sz9fr4
+UPDATE CHAIN TEST OK
+[GATE] template sync check ...
+[ok] opencodex-helper: 借条 @ a1ce1247 = 模板仓最新，工作树干净
+
+结果：绿——无阻断项（黄灯不阻断，exit 0）
+[BUILD] icon ...
+H:\Tools\my_diy_tools\opencodex-helper\src\icons.py:4: SyntaxWarning: invalid escape sequence '\i'
+  build.bat GATE 调 `python src\icons.py`：脚本目录（src）自动进 sys.path。
+OK H:\Tools\my_diy_tools\opencodex-helper\opencodex-helper.ico H:\Tools\my_diy_tools\opencodex-helper\opencodex-helper-taskbar.ico states: {'default': 5, 'down': 5, 'down_tunnel': 5, 'ok': 5, 'ok_tunnel': 5} exists: True True
+[TEST] local OTA acceptance (template ota_test) ...
+[1/3] package-root resolution (name/version agnostic)
+  ok   stable <APP_ID>/ folder  C:\Users\ADMINI~1\AppData\Local\Temp\ota-local-test-l5vv5ys0\resolver\stable-folder\ota-probe
+  ok   any single folder name is resolved  C:\Users\ADMINI~1\AppData\Local\Temp\ota-local-test-l5vv5ys0\resolver\legacy-versioned-folder\ota-probe-9.9.9
+  ok   flat zip (exe at extraction root)  C:\Users\ADMINI~1\AppData\Local\Temp\ota-local-test-l5vv5ys0\resolver\flat-zip
+  ok   ambiguous (two folders hold exe) fails closed  staged exe missing after extract: probe.vbs not found under C:\Users\ADMINI~1\AppData\Local\Temp\ota-local-test-l5vv5ys0\resolver\ambiguous as a flat file or inside exactly one top-level folder (found 2 candidate folder(s))
+  ok   no exe anywhere fails closed  staged exe missing after extract: probe.vbs not found under C:\Users\ADMINI~1\AppData\Local\Temp\ota-local-test-l5vv5ys0\resolver\missing-exe as a flat file or inside exactly one top-level folder (found 0 candidate folder(s))
+[2/3] full replace chain (real download_and_prepare + real bat)
+  ok   download progress callback delivered (1.5.2)  [283, 566]
+  ok   replace script generated  C:\Users\ADMINI~1\AppData\Local\Temp\ota-local-test-l5vv5ys0\chain\tmp\opencodex-helper-update.bat
+  ok   apply script settles after wait before copying (1.5.3)  settle marker missing or not before the copy line
+  ok   apply script uses fast robocopy retries (1.5.3)  4
+  ok   replace script lives outside the stage dir
+  ok   pending script launches
+  ok   new build was started
+  ok   new package laid down
+  ok   old payload purged
+  ok   exe replaced
+  ok   previous build rotated into _backup
+  ok   staging cleaned after success
+  ok   update.log records done  		       3	C:\Users\ADMINI~1\AppData\Local\Temp\ota-local-test-l5vv5ys0\chain\data\install\old.txt
+[2026-10-26 14:31:12] copied rc=3 
+[2026-10-26 14:31:12] done
+[3/3] fail-closed before generating a replace script
+  ok   exe-less package aborts with staged-exe error  staged exe missing after extract: probe.vbs not found under C:\Users\ADMINI~1\AppData\Local\Temp\ota-local-test-l5vv5ys0\negative\data\update-staging\package as a flat file or inside exactly one top-level folder (found 0 candidate folder(s))
+  ok   no replace script was generated
+[4/4] update_ui static checks (no window)
+  ok   update_ui importable
+  ok   zh/en key parity
+  ok   zh progress contains 50%  50%（50 B / 100 B）
+  ok   en progress contains 50%  50% (50 B / 100 B)
+  ok   unknown total still shows downloaded bytes  正在下载更新…（已下载 1.2 MB）
+  ok   both languages have 'downloaded'
+  ok   both languages have 'hint'
+  ok   both languages have 'apply'
+  ok   both languages have 'later'
+  ok   both languages have 'error'
+  ok   hint states the exit requirement  The update has been downloaded but cannot be applied while t
+OTA LOCAL TEST OK
+[BUILD] version metadata (PE FileVersion/ProductVersion) ...
+version-file written: H:\Tools\my_diy_tools\opencodex-helper\build\version_info.txt (Version=1.2.9, app=opencodex-helper)
+[BUILD] PyInstaller onedir noconsole ...
+186 INFO: PyInstaller: 6.22.0, contrib hooks: 2026.6
+186 INFO: Python: 3.13.3
+229 INFO: Platform: Windows-10-10.0.19045-SP0
+229 INFO: Python environment: H:\Tools\Python\Python313
+230 INFO: wrote build\opencodex-helper.spec
+232 INFO: Removing temporary files and cleaning cache in C:\Users\Administrator\AppData\Local\pyinstaller
+8800 INFO: Module search paths (PYTHONPATH):
+['H:\\Tools\\my_diy_tools\\opencodex-helper',
+ 'H:\\Tools\\Python\\Python313\\python313.zip',
+ 'H:\\Tools\\Python\\Python313\\DLLs',
+ 'H:\\Tools\\Python\\Python313\\Lib',
+ 'H:\\Tools\\Python\\Python313',
+ 'C:\\Users\\Administrator\\AppData\\Roaming\\Python\\Python313\\site-packages',
+ 'H:\\Tools\\Python\\Python313\\Lib\\site-packages',
+ 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\win32',
+ 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\win32\\lib',
+ 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\pythonwin',
+ 'H:\\Tools\\my_diy_tools\\opencodex-helper\\src']
+9593 INFO: Appending 'datas' from .spec
+9599 INFO: checking Analysis
+9599 INFO: Building Analysis because Analysis-00.toc is non existent
+9599 INFO: Looking for Python shared library...
+9599 INFO: Using Python shared library: H:\Tools\Python\Python313\python313.dll
+9599 INFO: Running Analysis Analysis-00.toc
+9599 INFO: Target bytecode optimization level: 0
+9599 INFO: Initializing module dependency graph...
+9600 INFO: Initializing module graph hook caches...
+9617 INFO: Analyzing modules for base_library.zip ...
+10895 INFO: Processing standard module hook 'hook-encodings.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+12048 INFO: Processing standard module hook 'hook-heapq.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+12298 INFO: Processing standard module hook 'hook-math.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+14250 INFO: Processing standard module hook 'hook-pickle.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+16407 INFO: Caching module dependency graph...
+16453 INFO: Analyzing H:\Tools\my_diy_tools\opencodex-helper\src\main.py
+16931 INFO: Processing standard module hook 'hook-webbrowser.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+16956 INFO: Processing standard module hook 'hook-_ctypes.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+17048 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+17219 INFO: Processing standard module hook 'hook-xml.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+17589 INFO: Processing pre-find-module-path hook 'hook-tkinter.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_find_module_path'
+17590 INFO: TclTkInfo: initializing cached Tcl/Tk info...
+18074 INFO: Processing standard module hook 'hook-_tkinter.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+18161 INFO: Processing standard module hook 'hook-pystray.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+18551 INFO: Processing pre-safe-import-module hook 'hook-six.moves.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+18607 INFO: Processing pre-safe-import-module hook 'hook-gi.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+18627 INFO: Processing standard module hook 'hook-PIL.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+18787 INFO: Processing standard module hook 'hook-PIL.Image.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+19097 INFO: Processing standard module hook 'hook-numpy.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+19717 INFO: Processing standard module hook 'hook-difflib.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+20672 INFO: Processing standard module hook 'hook-sysconfig.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+20803 INFO: Processing standard module hook 'hook-platform.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+21437 INFO: Processing standard module hook 'hook-psutil.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+22533 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+22533 INFO: SetuptoolsInfo: initializing cached setuptools info...
+24108 INFO: Processing standard module hook 'hook-charset_normalizer.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+24600 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+24801 INFO: Processing standard module hook 'hook-PIL.ImageFilter.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+25884 INFO: Analyzing hidden import 'psutil._psaix'
+25921 INFO: Analyzing hidden import 'psutil._psbsd'
+25956 INFO: Analyzing hidden import 'psutil._pslinux'
+26051 INFO: Analyzing hidden import 'psutil._psosx'
+26070 INFO: Analyzing hidden import 'psutil._pssunos'
+26098 INFO: Analyzing hidden import 'tkinter.__main__'
+26099 INFO: Analyzing hidden import 'tkinter.colorchooser'
+26101 INFO: Analyzing hidden import 'tkinter.dnd'
+26109 INFO: Analyzing hidden import 'tkinter.font'
+26119 INFO: Analyzing hidden import 'tkinter.scrolledtext'
+26122 INFO: Processing module hooks (post-graph stage)...
+26502 INFO: Processing standard module hook 'hook-PIL.SpiderImagePlugin.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+26598 INFO: Processing standard module hook 'hook-_tkinter.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+26611 INFO: Performing binary vs. data reclassification (988 entries)
+26682 INFO: Looking for ctypes DLLs
+26768 INFO: Analyzing run-time hooks ...
+26770 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+26773 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+26775 INFO: Including run-time hook 'pyi_rth__tkinter.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+26776 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+26817 INFO: Creating base_library.zip...
+26843 INFO: Looking for dynamic libraries
+27318 INFO: Extra DLL search directories (AddDllDirectory): ['H:\\Tools\\Python\\Python313\\Lib\\site-packages\\numpy.libs']
+27318 INFO: Extra DLL search directories (PATH): []
+28050 INFO: Warnings written to H:\Tools\my_diy_tools\opencodex-helper\build\work\opencodex-helper\warn-opencodex-helper.txt
+28098 INFO: Graph cross-reference written to H:\Tools\my_diy_tools\opencodex-helper\build\work\opencodex-helper\xref-opencodex-helper.html
+28136 INFO: checking PYZ
+28136 INFO: Building PYZ because PYZ-00.toc is non existent
+28136 INFO: Building PYZ (ZlibArchive) H:\Tools\my_diy_tools\opencodex-helper\build\work\opencodex-helper\PYZ-00.pyz
+28823 INFO: Building PYZ (ZlibArchive) H:\Tools\my_diy_tools\opencodex-helper\build\work\opencodex-helper\PYZ-00.pyz completed successfully.
+28841 INFO: checking PKG
+28842 INFO: Building PKG because PKG-00.toc is non existent
+28842 INFO: Building PKG (CArchive) opencodex-helper.pkg
+28923 INFO: Building PKG (CArchive) opencodex-helper.pkg completed successfully.
+28924 INFO: Bootloader H:\Tools\Python\Python313\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+28924 INFO: checking EXE
+28924 INFO: Building EXE because EXE-00.toc is non existent
+28924 INFO: Building EXE from EXE-00.toc
+28924 INFO: Copying bootloader EXE to H:\Tools\my_diy_tools\opencodex-helper\build\work\opencodex-helper\opencodex-helper.exe
+28928 INFO: Copying icon to EXE
+28932 INFO: Copying version information to EXE
+28937 INFO: Copying 0 resources to EXE
+28937 INFO: Embedding manifest in EXE
+28940 INFO: Appending PKG archive to EXE
+28944 INFO: Fixing EXE headers
+29037 INFO: Building EXE from EXE-00.toc completed successfully.
+29048 INFO: checking COLLECT
+29048 INFO: Building COLLECT because COLLECT-00.toc is non existent
+29049 INFO: Building COLLECT COLLECT-00.toc
+30204 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+30223 INFO: Build complete! The results are available in: H:\Tools\my_diy_tools\opencodex-helper\build\dist_tmp
+[PACK] assembling release\opencodex-helper-1.2.9 ...
+[SKIP] frozen smoke: nosmoke set - CI has no local opencodex service env
+
+[DONE] release: release\opencodex-helper-1.2.9\opencodex-helper.exe

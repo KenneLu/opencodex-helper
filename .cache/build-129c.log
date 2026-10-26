@@ -214,3 +214,192 @@ UI MARSHAL TEST OK
   ok   tool log() accepts the template's multi-arg (print) form
   ok   newer version cached for the menu  LATEST_VERSION='9.9.9'
   FAIL pending script path stored from return value  None
+  FAIL quit launches the stored apply script  []
+  ok   quit no longer goes through os.system (the console-flash path is gone)  []
+  FAIL launch flags suppress the console and detach the child  {'argv': ['cmd.exe', '/c', 'C:\\tmp\\ocx-apply.cmd'], 'flags': 134217728}
+  ok   the script really runs detached  marker=True elapsed=0.1s
+  ok   launch did not hang (< 10.0s)  elapsed=0.1s —— 若超时，疑似模态框（start 目标缺失或真跑单实例守卫）
+  ok   temp dir cleaned up (no %TEMP% leak)  H:\Tools\_verify-scratch\ocx-update-test-yqux0ovy
+UPDATE CHAIN TEST FAILED: pending script path stored from return value,quit launches the stored apply script,launch flags suppress the console and detach the child
+Exception ignored in: <function Image.__del__ at 0x000002806B25EF20>
+Traceback (most recent call last):
+  File "H:\Tools\Python\Python313\Lib\tkinter\__init__.py", line 4242, in __del__
+    self.tk.call('image', 'delete', self.name)
+RuntimeError: main thread is not in main loop
+Exception ignored in: <function Variable.__del__ at 0x000002806B2047C0>
+Traceback (most recent call last):
+  File "H:\Tools\Python\Python313\Lib\tkinter\__init__.py", line 414, in __del__
+    if self._tk.getboolean(self._tk.call("info", "exists", self._name)):
+RuntimeError: main thread is not in main loop
+Exception ignored in: <function Variable.__del__ at 0x000002806B2047C0>
+Traceback (most recent call last):
+  File "H:\Tools\Python\Python313\Lib\tkinter\__init__.py", line 414, in __del__
+    if self._tk.getboolean(self._tk.call("info", "exists", self._name)):
+RuntimeError: main thread is not in main loop
+Exception ignored in: <function Variable.__del__ at 0x000002806B2047C0>
+Traceback (most recent call last):
+  File "H:\Tools\Python\Python313\Lib\tkinter\__init__.py", line 414, in __del__
+    if self._tk.getboolean(self._tk.call("info", "exists", self._name)):
+RuntimeError: main thread is not in main loop
+Tcl_AsyncDelete: async handler deleted by the wrong thread
+[GATE] template sync check ...
+[ok] opencodex-helper: 借条 @ a1ce1247 = 模板仓最新，工作树干净
+
+结果：绿——无阻断项（黄灯不阻断，exit 0）
+[BUILD] icon ...
+H:\Tools\my_diy_tools\opencodex-helper\src\icons.py:4: SyntaxWarning: invalid escape sequence '\i'
+  build.bat GATE 调 `python src\icons.py`：脚本目录（src）自动进 sys.path。
+OK H:\Tools\my_diy_tools\opencodex-helper\opencodex-helper.ico H:\Tools\my_diy_tools\opencodex-helper\opencodex-helper-taskbar.ico states: {'default': 5, 'down': 5, 'down_tunnel': 5, 'ok': 5, 'ok_tunnel': 5} exists: True True
+[TEST] local OTA acceptance (template ota_test) ...
+[1/3] package-root resolution (name/version agnostic)
+  ok   stable <APP_ID>/ folder  C:\Users\ADMINI~1\AppData\Local\Temp\ota-local-test-jdtiy1cd\resolver\stable-folder\ota-probe
+  ok   any single folder name is resolved  C:\Users\ADMINI~1\AppData\Local\Temp\ota-local-test-jdtiy1cd\resolver\legacy-versioned-folder\ota-probe-9.9.9
+  ok   flat zip (exe at extraction root)  C:\Users\ADMINI~1\AppData\Local\Temp\ota-local-test-jdtiy1cd\resolver\flat-zip
+  ok   ambiguous (two folders hold exe) fails closed  staged exe missing after extract: probe.vbs not found under C:\Users\ADMINI~1\AppData\Local\Temp\ota-local-test-jdtiy1cd\resolver\ambiguous as a flat file or inside exactly one top-level folder (found 2 candidate folder(s))
+  ok   no exe anywhere fails closed  staged exe missing after extract: probe.vbs not found under C:\Users\ADMINI~1\AppData\Local\Temp\ota-local-test-jdtiy1cd\resolver\missing-exe as a flat file or inside exactly one top-level folder (found 0 candidate folder(s))
+[2/3] full replace chain (real download_and_prepare + real bat)
+  ok   download progress callback delivered (1.5.2)  [281, 563]
+  ok   replace script generated  C:\Users\ADMINI~1\AppData\Local\Temp\ota-local-test-jdtiy1cd\chain\tmp\opencodex-helper-update.bat
+  ok   apply script settles after wait before copying (1.5.3)  settle marker missing or not before the copy line
+  ok   apply script uses fast robocopy retries (1.5.3)  4
+  ok   replace script lives outside the stage dir
+  ok   pending script launches
+  ok   new build was started
+  ok   new package laid down
+  ok   old payload purged
+  ok   exe replaced
+  ok   previous build rotated into _backup
+  ok   staging cleaned after success
+  ok   update.log records done  		       3	C:\Users\ADMINI~1\AppData\Local\Temp\ota-local-test-jdtiy1cd\chain\data\install\old.txt
+[2026-10-26 14:48:48] copied rc=3 
+[2026-10-26 14:48:48] done
+[3/3] fail-closed before generating a replace script
+  ok   exe-less package aborts with staged-exe error  staged exe missing after extract: probe.vbs not found under C:\Users\ADMINI~1\AppData\Local\Temp\ota-local-test-jdtiy1cd\negative\data\update-staging\package as a flat file or inside exactly one top-level folder (found 0 candidate folder(s))
+  ok   no replace script was generated
+[4/4] update_ui static checks (no window)
+  ok   update_ui importable
+  ok   zh/en key parity
+  ok   zh progress contains 50%  50%（50 B / 100 B）
+  ok   en progress contains 50%  50% (50 B / 100 B)
+  ok   unknown total still shows downloaded bytes  正在下载更新…（已下载 1.2 MB）
+  ok   both languages have 'downloaded'
+  ok   both languages have 'hint'
+  ok   both languages have 'apply'
+  ok   both languages have 'later'
+  ok   both languages have 'error'
+  ok   hint states the exit requirement  The update has been downloaded but cannot be applied while t
+OTA LOCAL TEST OK
+[BUILD] version metadata (PE FileVersion/ProductVersion) ...
+version-file written: H:\Tools\my_diy_tools\opencodex-helper\build\version_info.txt (Version=1.2.9, app=opencodex-helper)
+[BUILD] PyInstaller onedir noconsole ...
+145 INFO: PyInstaller: 6.22.0, contrib hooks: 2026.6
+145 INFO: Python: 3.13.3
+179 INFO: Platform: Windows-10-10.0.19045-SP0
+179 INFO: Python environment: H:\Tools\Python\Python313
+180 INFO: wrote build\opencodex-helper.spec
+181 INFO: Removing temporary files and cleaning cache in C:\Users\Administrator\AppData\Local\pyinstaller
+6947 INFO: Module search paths (PYTHONPATH):
+['H:\\Tools\\my_diy_tools\\opencodex-helper',
+ 'H:\\Tools\\Python\\Python313\\python313.zip',
+ 'H:\\Tools\\Python\\Python313\\DLLs',
+ 'H:\\Tools\\Python\\Python313\\Lib',
+ 'H:\\Tools\\Python\\Python313',
+ 'C:\\Users\\Administrator\\AppData\\Roaming\\Python\\Python313\\site-packages',
+ 'H:\\Tools\\Python\\Python313\\Lib\\site-packages',
+ 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\win32',
+ 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\win32\\lib',
+ 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\pythonwin',
+ 'H:\\Tools\\my_diy_tools\\opencodex-helper\\src']
+7607 INFO: Appending 'datas' from .spec
+7611 INFO: checking Analysis
+7611 INFO: Building Analysis because Analysis-00.toc is non existent
+7611 INFO: Looking for Python shared library...
+7611 INFO: Using Python shared library: H:\Tools\Python\Python313\python313.dll
+7611 INFO: Running Analysis Analysis-00.toc
+7611 INFO: Target bytecode optimization level: 0
+7611 INFO: Initializing module dependency graph...
+7612 INFO: Initializing module graph hook caches...
+7626 INFO: Analyzing modules for base_library.zip ...
+8753 INFO: Processing standard module hook 'hook-encodings.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+9468 INFO: Processing standard module hook 'hook-math.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+10914 INFO: Processing standard module hook 'hook-pickle.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+11899 INFO: Processing standard module hook 'hook-heapq.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+12416 INFO: Caching module dependency graph...
+12459 INFO: Analyzing H:\Tools\my_diy_tools\opencodex-helper\src\main.py
+12896 INFO: Processing standard module hook 'hook-webbrowser.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+12916 INFO: Processing standard module hook 'hook-_ctypes.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+13000 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+13145 INFO: Processing standard module hook 'hook-xml.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+13444 INFO: Processing pre-find-module-path hook 'hook-tkinter.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_find_module_path'
+13444 INFO: TclTkInfo: initializing cached Tcl/Tk info...
+13845 INFO: Processing standard module hook 'hook-_tkinter.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+13930 INFO: Processing standard module hook 'hook-pystray.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+14257 INFO: Processing pre-safe-import-module hook 'hook-six.moves.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+14315 INFO: Processing pre-safe-import-module hook 'hook-gi.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+14337 INFO: Processing standard module hook 'hook-PIL.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+14532 INFO: Processing standard module hook 'hook-PIL.Image.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+14899 INFO: Processing standard module hook 'hook-numpy.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+15555 INFO: Processing standard module hook 'hook-difflib.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+16514 INFO: Processing standard module hook 'hook-sysconfig.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+16614 INFO: Processing standard module hook 'hook-platform.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+17214 INFO: Processing standard module hook 'hook-psutil.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+18068 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+18069 INFO: SetuptoolsInfo: initializing cached setuptools info...
+19499 INFO: Processing standard module hook 'hook-charset_normalizer.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+19896 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+20088 INFO: Processing standard module hook 'hook-PIL.ImageFilter.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+21112 INFO: Analyzing hidden import 'psutil._psaix'
+21161 INFO: Analyzing hidden import 'psutil._psbsd'
+21190 INFO: Analyzing hidden import 'psutil._pslinux'
+21311 INFO: Analyzing hidden import 'psutil._psosx'
+21339 INFO: Analyzing hidden import 'psutil._pssunos'
+21368 INFO: Analyzing hidden import 'tkinter.__main__'
+21368 INFO: Analyzing hidden import 'tkinter.colorchooser'
+21370 INFO: Analyzing hidden import 'tkinter.dnd'
+21379 INFO: Analyzing hidden import 'tkinter.font'
+21388 INFO: Analyzing hidden import 'tkinter.scrolledtext'
+21393 INFO: Processing module hooks (post-graph stage)...
+21795 INFO: Processing standard module hook 'hook-PIL.SpiderImagePlugin.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+21902 INFO: Processing standard module hook 'hook-_tkinter.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+21915 INFO: Performing binary vs. data reclassification (988 entries)
+22028 INFO: Looking for ctypes DLLs
+22139 INFO: Analyzing run-time hooks ...
+22143 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+22147 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+22149 INFO: Including run-time hook 'pyi_rth__tkinter.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+22150 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'H:\\Tools\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+22186 INFO: Creating base_library.zip...
+22221 INFO: Looking for dynamic libraries
+22731 INFO: Extra DLL search directories (AddDllDirectory): ['H:\\Tools\\Python\\Python313\\Lib\\site-packages\\numpy.libs']
+22732 INFO: Extra DLL search directories (PATH): []
+23585 INFO: Warnings written to H:\Tools\my_diy_tools\opencodex-helper\build\work\opencodex-helper\warn-opencodex-helper.txt
+23629 INFO: Graph cross-reference written to H:\Tools\my_diy_tools\opencodex-helper\build\work\opencodex-helper\xref-opencodex-helper.html
+23667 INFO: checking PYZ
+23668 INFO: Building PYZ because PYZ-00.toc is non existent
+23668 INFO: Building PYZ (ZlibArchive) H:\Tools\my_diy_tools\opencodex-helper\build\work\opencodex-helper\PYZ-00.pyz
+24269 INFO: Building PYZ (ZlibArchive) H:\Tools\my_diy_tools\opencodex-helper\build\work\opencodex-helper\PYZ-00.pyz completed successfully.
+24281 INFO: checking PKG
+24281 INFO: Building PKG because PKG-00.toc is non existent
+24281 INFO: Building PKG (CArchive) opencodex-helper.pkg
+24363 INFO: Building PKG (CArchive) opencodex-helper.pkg completed successfully.
+24365 INFO: Bootloader H:\Tools\Python\Python313\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+24365 INFO: checking EXE
+24365 INFO: Building EXE because EXE-00.toc is non existent
+24365 INFO: Building EXE from EXE-00.toc
+24365 INFO: Copying bootloader EXE to H:\Tools\my_diy_tools\opencodex-helper\build\work\opencodex-helper\opencodex-helper.exe
+24369 INFO: Copying icon to EXE
+24372 INFO: Copying version information to EXE
+24378 INFO: Copying 0 resources to EXE
+24378 INFO: Embedding manifest in EXE
+24381 INFO: Appending PKG archive to EXE
+24385 INFO: Fixing EXE headers
+24483 INFO: Building EXE from EXE-00.toc completed successfully.
+24494 INFO: checking COLLECT
+24495 INFO: Building COLLECT because COLLECT-00.toc is non existent
+24495 INFO: Building COLLECT COLLECT-00.toc
+25551 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+25576 INFO: Build complete! The results are available in: H:\Tools\my_diy_tools\opencodex-helper\build\dist_tmp
+[PACK] assembling release\opencodex-helper-1.2.9 ...
+[SKIP] frozen smoke: nosmoke set - CI has no local opencodex service env
+
+[DONE] release: release\opencodex-helper-1.2.9\opencodex-helper.exe

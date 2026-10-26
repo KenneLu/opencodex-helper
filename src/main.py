@@ -60,7 +60,7 @@ def _resource_path(name):
 PLINK_PATH = _resource_path("bin/plink.exe")
 
 APP_NAME = "opencodex 助手"
-VERSION = "1.2.9"
+VERSION = "1.2.10"
 
 DEFAULT_CONFIG = {
     "targets": [],
@@ -1065,24 +1065,32 @@ PENDING_UPDATE_CMD = None
 
 
 def check_update_menu(_icon=None, _item=None):
-    def worker():
+    """统一消息模式（模板 update_ui 1.1.0）：先「正在检查更新…」，1 秒后真查再发结果。"""
+    def notify_message(message):
+        try:
+            if _icon is not None:
+                _icon.notify(message, i18n.t("app_name"))
+        except Exception:
+            pass
+
+    def check():
         global LATEST_VERSION
         result = update_helper.check_update(VERSION, force=True)
         if result.get("newer"):
             LATEST_VERSION = result["latest"]
-            notify_status_change(_icon, i18n.t("notify_update_available", result["latest"], VERSION), True)
-        elif result.get("error"):
-            # 网络失败不动既有状态，避免误清已发现的新版本
-            notify_status_change(_icon, i18n.t("notify_update_check_failed", result["error"]), False)
-        else:
+        elif not result.get("error"):
             LATEST_VERSION = None
-            notify_status_change(_icon, i18n.t("notify_update_latest", VERSION), True)
+        return result
+
+    def after(_result):
         try:
-            _icon.update_menu()
+            if _icon is not None:
+                _icon.update_menu()
         except Exception:
             pass
-    threading.Thread(target=worker, daemon=True).start()
 
+    update_ui.run_check_flow(check, notify_message, VERSION, lang=i18n.current_lang(),
+                             on_result=after)
 
 def _ask_update_choice(download):
     """统一更新弹窗（模板 update_ui）；单独成函数供测试替换，避免真实窗口。"""

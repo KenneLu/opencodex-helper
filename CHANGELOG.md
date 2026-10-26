@@ -3,6 +3,9 @@
 All notable changes to opencodex-helper are documented here.
 The tagging convention matches the versions in this file.
 
+## 1.2.10
+- **检查更新统一为消息流程（模板 update_ui 1.1.0）**（2026-10-26）：点「检查更新」先提示「正在检查更新…」，1 秒后真正查询，再按结果发消息；下载仍走统一进度弹窗。
+
 ## 1.2.9
 - **统一「下载并更新」交互（模板 update_ui 1.0.1 + update_helper 1.5.3）**（2026-10-26）：移除 ocx 私有的「后台静默下载 + 完成气泡」形态：点击下载立即弹窗显示进度条，完成后刷新为「更新已下载完成」并给出「立即更新 / 稍后更新」，明确说明需退出软件才能应用；立即更新=退出并拉起替换脚本（跳过二次确认，弹窗里已明确同意退出），稍后更新=退出托盘时自动执行。另随模板修 OTA 替换链（静置/快速重试/无 Robocopy 黑窗）。
 
