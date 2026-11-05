@@ -1,4 +1,4 @@
-# opencodex-helper (opencodex 助手) v1.2.6
+# opencodex-helper (opencodex 助手) v1.2.11
 
 **English** | [简体中文](README.zh-CN.md)
 

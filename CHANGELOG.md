@@ -3,6 +3,9 @@
 All notable changes to opencodex-helper are documented here.
 The tagging convention matches the versions in this file.
 
+## 1.2.11
+- **模板引用更新到 diy-tool-kit 55f627e**（2026-11-05）：`src/template` 借条 `e779e30` -> `55f627e`，纳入 `update_ui` 模态下载对话框约定（调用方不得加固定业务超时）与 `ota_test` 断言加固。VERSION 1.2.10 -> 1.2.11。
+
 ## 1.2.10
 - **检查更新统一为消息流程（模板 update_ui 1.1.0）**（2026-10-26）：点「检查更新」先提示「正在检查更新…」，1 秒后真正查询，再按结果发消息；下载仍走统一进度弹窗。
 
