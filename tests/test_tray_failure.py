@@ -17,6 +17,7 @@
   ⑤ 无头入口（--smoke）只写日志不弹窗（负控，避免挂死构建）。
 """
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -159,6 +160,41 @@ check("headless still writes the best-effort crash log",
 
 check("crash log stays inside the isolated user data root (logs/crash/)",
       str(USER_DATA_DIR) in str(_newest_crash()), str(_newest_crash()))
+
+# ---- ⑥ 崩溃日志兜底：LOG_DIR 不可写 → %TEMP%\<APP_ID>\crash\（工具目录内）+ 警告 ----
+# 兜底落点必须在**工具目录内**（不是 %TEMP% 根）；静默兜底等于没做，必须打印警告。
+# 用 OPENCODEX_HELPER_SCRATCH_DIR 把临时根隔离到本测试的临时目录，不污染真实 %TEMP%。
+_scratch_env = "OPENCODEX_HELPER_SCRATCH_DIR"
+_scratch_saved = os.environ.get(_scratch_env)
+os.environ[_scratch_env] = str(_TMP)
+_saved_log_dir = M.LOG_DIR
+_blocker = Path(_TMP) / "blocker-file"
+try:
+    _blocker.write_text("x", encoding="utf-8")
+    M.LOG_DIR = _blocker / "logs"      # 父路径是普通文件 → 落点必失败
+    _warns = []
+    # 传 directory=M.LOG_DIR/"crash"：模板默认的 crash_log_dir() 取的是 template.paths.LOG_DIR
+    # 的 import 期快照，改 M.LOG_DIR 影响不到它——必须显式传，才能模拟「首选不可写」。
+    written = M.temp_kit.write_crash_log(
+        "startup", "boom-fallback", directory=M.LOG_DIR / "crash", warn=_warns.append)
+    check("unwritable LOG_DIR -> crash log falls back under the tool dir (%TEMP%\\<APP_ID>\\crash\\)",
+          written is not None and written.parent == M.temp_kit.temp_root() / "crash",
+          str(written))
+    check("fallback prints a warning (silent fallback is as good as none)",
+          any("用户数据区不可写" in w for w in _warns), _warns)
+    # 工具侧入口（_write_startup_failure_log）也走同一条兜底链
+    via_tool = M._write_startup_failure_log("boom-tool-side")
+    check("the tool-side crash-log entry also lands in the fallback dir",
+          via_tool is not None and via_tool.parent == M.temp_kit.temp_root() / "crash",
+          str(via_tool))
+finally:
+    M.LOG_DIR = _saved_log_dir
+    shutil.rmtree(M.temp_kit.temp_root() / "crash", ignore_errors=True)
+    if _scratch_saved is None:
+        os.environ.pop(_scratch_env, None)
+    else:
+        os.environ[_scratch_env] = _scratch_saved
+
 check("temp dir cleaned up (no %TEMP% leak)", rmtree_cleanup(_TMP), str(_TMP))
 print("TRAY FAILURE TEST " + ("FAILED: " + ",".join(FAILS) if FAILS else "OK"), flush=True)
 sys.exit(1 if FAILS else 0)
