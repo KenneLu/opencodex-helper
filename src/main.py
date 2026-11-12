@@ -32,7 +32,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 import pystray
 from PIL import Image, ImageDraw
 
-from template import autostart, i18n, log_kit, paths, tray_icons, tray_kit, update_helper, update_ui   # noqa: E402
+from template import autostart, i18n, log_kit, paths, temp_kit, tray_icons, tray_kit, update_helper, update_ui   # noqa: E402
 from template.service_link import service_link   # noqa: E402  ：服务编排（boot ensure）
 from template.tunnel_kit import tunnel_kit   # noqa: E402  ：参数正本 + 自愈语义
 from template.appconfig import APP_ID   # noqa: E402
@@ -1442,21 +1442,15 @@ def _message_box(text, title=None):
 
 
 def _write_startup_failure_log(text):
-    """best-effort 写崩溃信息：用户数据根日志目录 → 程序目录 → %TEMP%；全失败返回 None。"""
-    candidates = [
-        LOG_DIR / "startup-error.log",
-        APP_DIR / "startup-error.log",
-        Path(tempfile.gettempdir()) / f"{APP_ID}-startup-error.log",
-    ]
-    for path in candidates:
-        try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            with open(path, "a", encoding="utf-8") as fh:
-                fh.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {text}\n")
-            return path
-        except Exception:
-            continue
-    return None
+    """写崩溃日志：``<LOG_DIR>\\crash\\startup-<时间戳>-<随机>.log``（一件一文件，保留 10 份）。
+
+    走模板标准件 temp_kit：**不放 %TEMP%**（会被清理，证据会丢）、不追加进主日志。
+    写失败绝不拦住退出。
+    """
+    try:
+        return temp_kit.write_crash_log("startup", text, directory=LOG_DIR / "crash")
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _tray_failure_text(exc, detail):

@@ -44,9 +44,24 @@ def check(name, ok, detail=""):
 MESSAGES = []
 M._message_box = lambda text, title=None: MESSAGES.append((text, title)) or True
 
-CRASH_LOG = Path(LOG_DIR) / "startup-error.log"
-if CRASH_LOG.exists():
-    CRASH_LOG.unlink()
+CRASH_DIR = Path(LOG_DIR) / "crash"
+
+
+def _newest_crash():
+    """崩溃日志目录里最新的一份（一件一文件）；无则 None。"""
+    if not CRASH_DIR.is_dir():
+        return None
+    files = sorted(CRASH_DIR.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
+    return files[0] if files else None
+
+
+def _clear_crash():
+    if CRASH_DIR.is_dir():
+        for p in CRASH_DIR.iterdir():
+            try:
+                p.unlink()
+            except OSError:
+                pass
 
 
 class _BoomIcon:
@@ -87,20 +102,21 @@ check("run_tray shows exactly one readable MessageBox with the failure title",
 check("the MessageBox body is the readable hint text, not an english-only traceback",
       bool(MESSAGES) and M.i18n.t("tray_failed_headline") in MESSAGES[0][0],
       (MESSAGES[0][0][:120] if MESSAGES else ""))
-check("run_tray writes the crash log best-effort",
-      CRASH_LOG.is_file() and M.i18n.t("tray_failed_headline") in CRASH_LOG.read_text(
+check("run_tray writes the crash log best-effort (one file per incident in logs/crash/)",
+      _newest_crash() is not None
+      and M.i18n.t("tray_failed_headline") in _newest_crash().read_text(
           encoding="utf-8", errors="replace"),
-      str(CRASH_LOG))
+      str(_newest_crash()))
 check("run_tray never raises (the caller gets an exit code, not a traceback)", True)
 
 # ---- ③ 负控：正常结束 → 0，不弹窗 -----------------------------------------
 MESSAGES.clear()
-_log_before = CRASH_LOG.read_text(encoding="utf-8", errors="replace")
+_log_before = _newest_crash()
 rc = M.run_tray(_OkIcon(), setup=None)
 check("run_tray returns 0 when the tray loop ends normally", rc == 0, rc)
 check("negative control: success path shows no failure dialog", not MESSAGES, repr(MESSAGES))
 check("negative control: success path writes no new crash log",
-      CRASH_LOG.read_text(encoding="utf-8", errors="replace") == _log_before)
+      _newest_crash() == _log_before)
 
 # ---- ④ main_entry：其它启动期异常 → 2 + 可读弹窗 --------------------------
 MESSAGES.clear()
@@ -129,7 +145,7 @@ check("main_entry dialog carries the traceback tail for the maintainer",
 
 # ---- ⑤ 负控：无头入口（--smoke）不弹窗，但日志照写 ------------------------
 MESSAGES.clear()
-CRASH_LOG.unlink()          # 从干净状态验证"写了"
+_clear_crash()              # 从干净状态验证"写了"
 _argv = sys.argv
 sys.argv = [_argv[0], "--smoke"]
 try:
@@ -138,11 +154,11 @@ finally:
     sys.argv = _argv
 check("negative control: headless (--smoke) shows no dialog", not MESSAGES, repr(MESSAGES))
 check("headless still writes the best-effort crash log",
-      CRASH_LOG.is_file() and "headless probe text" in CRASH_LOG.read_text(
-          encoding="utf-8", errors="replace"), str(CRASH_LOG))
+      _newest_crash() is not None and "headless probe text" in _newest_crash().read_text(
+          encoding="utf-8", errors="replace"), str(_newest_crash()))
 
-check("crash log stays inside the isolated user data root",
-      str(USER_DATA_DIR) in str(CRASH_LOG), str(CRASH_LOG))
+check("crash log stays inside the isolated user data root (logs/crash/)",
+      str(USER_DATA_DIR) in str(_newest_crash()), str(_newest_crash()))
 check("temp dir cleaned up (no %TEMP% leak)", rmtree_cleanup(_TMP), str(_TMP))
 print("TRAY FAILURE TEST " + ("FAILED: " + ",".join(FAILS) if FAILS else "OK"), flush=True)
 sys.exit(1 if FAILS else 0)
